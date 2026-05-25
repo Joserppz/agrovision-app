@@ -1,0 +1,16 @@
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Configuraciones de editores
+.vscode/
+.idea/
+*.suo
+
+# Backend Python
+backend/__pycache__/
+backend/**/*.pyc
+backend/.env
+
+# El modelo pesado de IA (se lo pasan por fuera si pesa mucho)
+backend/models_jet/best.pt
