@@ -1,0 +1,19 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+backend/.venv/
+
+# YOLO weights and model artifacts
+*.pt
+backend/models_jet/
+
+# Temporary files
+temp/
+backend/temp/
+
+# macOS
+.DS_Store
