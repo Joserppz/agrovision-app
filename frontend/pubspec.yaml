@@ -1,30 +1,20 @@
-name: frontend
-description: "A new Flutter project."
+# pubspec.yaml
+name: agrovision
+description: App AgroVision con GetX
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.4.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-
-  cupertino_icons: ^1.0.6
-
-  # Librerías para AgroVision (Cámara e Integración con la API)
-  camera: ^0.10.5+9
-  image_picker: ^1.1.2
-  http: ^1.2.1
-  path_provider: ^2.1.3
-  path: ^1.9.0
-
-dev_dependencies:
+  get: ^4.6.6
+  google_fonts: ^6.1.0
+  camera: ^0.10.5+5
   flutter_test:
     sdk: flutter
-
-  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
