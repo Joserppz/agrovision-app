@@ -26,11 +26,17 @@ if (flutterVersionName == null) {
 android {
     namespace = "com.example.frontend"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "25.1.8937393"
 
+    // Actualizado: Cambiado de VERSION_1_8 a VERSION_17 para soportar las herramientas de Java 21 sin romper el análisis semántico
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    // Actualizado: Añadido bloque KotlinOptions para que el compilador de Kotlin también use la JVM correcta
+    kotlinOptions {
+        jvmTarget = '17'
     }
 
     defaultConfig {
@@ -38,7 +44,7 @@ android {
         applicationId = "com.example.frontend"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdk = flutter.minSdkVersion
+        minSdk = 21 // Forzado a 21 mínimo, requerido por la mayoría de las librerías nativas actuales como Sqflite/Hive
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName

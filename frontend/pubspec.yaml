@@ -1,20 +1,69 @@
-# pubspec.yaml
-name: agrovision
-description: App AgroVision con GetX
+name: frontend
+description: AgroVision - Diagnóstico inteligente de cultivos con IA
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
+
+  # ── GetX ──────────────────────────────────────────────
   get: ^4.6.6
-  google_fonts: ^6.1.0
-  camera: ^0.10.5+5
+
+  # ── HTTP ──────────────────────────────────────────────
+  dio: ^5.4.0
+
+  # ── Base de datos local ───────────────────────────────
+  sqflite: ^2.3.2
+  path_provider: ^2.1.2
+  path: ^1.9.0
+
+  # ── Supabase (auth + realtime foro) ───────────────────
+  supabase_flutter: ^2.3.4
+
+  # ── Cámara y galería ──────────────────────────────────
+  camera: ^0.10.5+9
+  image_picker: ^1.0.7
+
+  # ── Mapas (sin API key, OpenStreetMap) ────────────────
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  flutter_map_location_marker: ^9.1.1
+
+  # ── GPS / ubicación ───────────────────────────────────
+  # geolocator viene como dependencia transitiva de flutter_map_location_marker ^9
+  # no lo declaramos directo para evitar conflictos de versión
+  geocoding: ^3.0.0
+
+  # ── Conectividad online/offline ───────────────────────
+  connectivity_plus: ^5.0.2
+
+  # ── Almacenamiento seguro (token JWT) ─────────────────
+  flutter_secure_storage: ^9.0.0
+
+  # ── Imágenes ──────────────────────────────────────────
+  cached_network_image: ^3.3.1
+
+  # ── UUID para device_id anónimo ───────────────────────
+  uuid: ^4.3.3
+
+  # ── Utilidades ────────────────────────────────────────
+  intl: ^0.19.0
+  permission_handler: ^11.3.0
+
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.8
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/

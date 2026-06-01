@@ -1,14 +1,34 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/constants.dart';
+import 'core/routes.dart';
+import 'core/bindings.dart';
+import 'core/theme.dart';
 
-import 'screens/main_layout.dart';
-import 'screens/camera_screen.dart';
-import 'screens/loading_screen.dart';
-import 'screens/results_screen.dart';
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
+  // Orientación solo vertical
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+
+  // Barra de estado transparente
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor:      Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+  ));
+
+  // Supabase — solo si las keys están configuradas
+  if (AgroConfig.supabaseUrl != 'TU_SUPABASE_URL') {
+    await Supabase.initialize(
+      url:    AgroConfig.supabaseUrl,
+      anonKey: AgroConfig.supabaseAnonKey,
+    );
+  }
+
   runApp(const AgroVisionApp());
 }
 
@@ -18,26 +38,19 @@ class AgroVisionApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'AgroVision',
+      title:           'AgroVision',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFFDFBF7), // Cream
-        primaryColor: const Color(0xFF2D5A27), // Green
-        textTheme: GoogleFonts.dmSansTextTheme(),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFFDFBF7),
-          elevation: 0,
-          iconTheme: IconThemeData(color: Color(0xFF2D5A27)),
-          centerTitle: true,
-        ),
-      ),
-      initialRoute: '/home',
-      getPages: [
-        GetPage(name: '/home', page: () => MainLayout()),
-        GetPage(name: '/camera', page: () => const CameraScreen()),
-        GetPage(name: '/loading', page: () => const LoadingScreen()),
-        GetPage(name: '/results', page: () => const ResultsScreen()),
-      ],
+      theme:           AgroTheme.light,
+      initialRoute:    AgroRoutes.home,
+      initialBinding: InitialBinding(),
+      getPages:        AgroPages.pages,
+
+      // Traducciones de GetX (español por defecto)
+      locale:          const Locale('es', 'BO'),
+      fallbackLocale:  const Locale('es', 'ES'),
+
+      // Snackbar global con estilo AgroVision
+      defaultTransition: Transition.fadeIn,
     );
   }
 }

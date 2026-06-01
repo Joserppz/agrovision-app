@@ -18,8 +18,10 @@ pluginManagement {
 
 plugins {
     id "dev.flutter.flutter-plugin-loader" version "1.0.0"
-    id "com.android.application" version "7.3.0" apply false
-    id "org.jetbrains.kotlin.android" version "1.7.10" apply false
+    // Actualizado: Versión compatible con Gradle 8.5 y Java 21
+    id "com.android.application" version "8.2.2" apply false
+    // Actualizado: Versión de Kotlin estable que soluciona el error semántico
+    id "org.jetbrains.kotlin.android" version "1.9.22" apply false
 }
 
 include ":app"
