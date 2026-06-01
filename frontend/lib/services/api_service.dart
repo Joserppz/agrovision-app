@@ -47,7 +47,7 @@ class ApiService extends GetxService {
       case DioExceptionType.receiveTimeout:
         return const TimeoutException();
       case DioExceptionType.connectionError:
-        return const NoConnectionException();
+        return const NoConnectionException('No connection');
       case DioExceptionType.badResponse:
         final code = error.response?.statusCode;
         final msg  = error.response?.data?['detail'] as String?

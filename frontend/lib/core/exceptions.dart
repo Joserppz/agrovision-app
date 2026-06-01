@@ -20,7 +20,7 @@ class BackendException extends AgroException {
 
 // No hay internet y la operación lo requiere
 class NoConnectionException extends AgroException {
-  const NoConnectionException()
+  const NoConnectionException(String s)
       : super('Sin conexión a internet. El resultado se guardó localmente.');
 }
 

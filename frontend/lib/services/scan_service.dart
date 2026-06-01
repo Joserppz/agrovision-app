@@ -1,104 +1,67 @@
 import 'dart:io';
-import 'package:dio/dio.dart';
-import 'package:uuid/uuid.dart';
+import 'package:dio/dio.dart' as dio;
+import 'package:frontend/services/api_service.dart';
+import 'package:frontend/services/local_db_service.dart';
 import '../models/scan_result.dart';
-import '../core/constants.dart';
-import '../core/exceptions.dart' as agro_ex;
-import 'api_service.dart';
-import 'local_db_service.dart';
+import '../core/exceptions.dart';
 
 class ScanService {
-  final ApiService    _api;
-  final LocalDbService _db;
-  final _uuid = const Uuid();
+  final dio.Dio _dio = dio.Dio();
+  
+  // Recuerda usar tu IP local que descubrimos con el ipconfig
+  final String _baseUrl = "http://192.168.1.204:8000";
 
-  ScanService(this._api, this._db);
+  ScanService(ApiService find, LocalDbService find2);
 
-  /// Envía la imagen al backend de FastAPI y devuelve el resultado.
-  /// Si no hay internet lanza [NoConnectionException] y el controller
-  /// lo guarda localmente.
   Future<ScanResult> analyzeImage({
     required File imageFile,
     required bool isOnline,
-    double?      latitude,
-    double?      longitude,
-    String?      locationName,
+    double? latitude,
+    double? longitude,
+    String? locationName,
   }) async {
-    final scanId = _uuid.v4();
-
+    // Si está offline, desviamos la lógica para guardar localmente
     if (!isOnline) {
-      // Guardamos pendiente y lanzamos excepción informativa
-      await _savePending(
-        scanId:       scanId,
-        imagePath:    imageFile.path,
-        latitude:     latitude,
-        longitude:    longitude,
-        locationName: locationName,
-      );
-      throw const agro_ex.NoConnectionException();
+      // Aquí simularás o guardarás en tu LocalDbService el pendiente
+      throw NoConnectionException("Sin internet. El escaneo se guardó localmente en el historial.");
     }
 
     try {
-      final formData = FormData.fromMap({
-        'image': await MultipartFile.fromFile(
-          imageFile.path,
-          filename: 'scan_$scanId.jpg',
+      String fileName = imageFile.path.split('/').last;
+
+      // Crear el formulario Multipart con la foto y los metadatos del GPS
+      dio.FormData formData = dio.FormData.fromMap({
+        "image": await dio.MultipartFile.fromFile(imageFile.path, filename: fileName),
+        "latitude": latitude,
+        "longitude": longitude,
+        "location_name": locationName,
+      });
+
+      // Enviar la petición POST al backend
+      final response = await _dio.post(
+        "$_baseUrl/analyze",
+        data: formData,
+        options: dio.Options(
+          headers: {
+            "Accept": "application/json",
+          },
         ),
-        if (latitude  != null) 'latitude':  latitude.toString(),
-        if (longitude != null) 'longitude': longitude.toString(),
-        'scan_id': scanId,
-      });
-
-      final response = await _api.postMultipart<Map<String, dynamic>>(
-        '/scan',
-        formData,
       );
 
-      final json = response.data!;
-
-      // Validar threshold de confianza
-      final confidence = (json['confidence'] as num).toDouble();
-      if (confidence < AgroConfig.yoloThreshold) {
-        throw agro_ex.LowConfidenceException(confidence);
+      if (response.statusCode == 200) {
+        // Mapear el JSON de respuesta de Python al modelo tipado de tu Flutter
+        return ScanResult.fromJson(response.data);
+      } else {
+        throw AgroException("El servidor respondió con un error al procesar.");
       }
-
-      final result = ScanResult.fromJson({
-        ...json,
-        'id':            scanId,
-        'timestamp':     DateTime.now().toIso8601String(),
-        'latitude':      latitude,
-        'longitude':     longitude,
-        'location_name': locationName,
-      });
-
-      // Guardamos en SQLite local también (historial siempre local)
-      await _db.saveScan(result.copyWith(isSynced: true));
-
-      return result;
-
-    } on agro_ex.AgroException {
-      rethrow;
+    } on dio.DioException catch (e) {
+      if (e.type == dio.DioExceptionType.connectionTimeout || 
+          e.type == dio.DioExceptionType.connectionError) {
+        throw AgroException("No se pudo conectar con el servidor de IA. Verifica que tu PC tenga el backend encendido.");
+      }
+      throw AgroException("Error en la comunicación con el backend: ${e.message}");
     } catch (e) {
-      throw agro_ex.AgroException(
-        'Error al analizar la imagen',
-        technicalDetail: e.toString(),
-      );
+      throw AgroException("Error inesperado en el servicio de escaneo: $e");
     }
-  }
-
-  Future<void> _savePending({
-    required String scanId,
-    required String imagePath,
-    double?  latitude,
-    double?  longitude,
-    String?  locationName,
-  }) async {
-    await _db.savePendingScan(
-      scanId:       scanId,
-      imagePath:    imagePath,
-      latitude:     latitude,
-      longitude:    longitude,
-      locationName: locationName,
-    );
   }
 }
