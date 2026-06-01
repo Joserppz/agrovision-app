@@ -67,8 +67,8 @@ class ScanController extends GetxController {
 
       cameraController = CameraController(
         selectedCamera,
-        ResolutionPreset.medium, // Optimizado: Evita el desbordamiento de memoria en Samsung
-        enableAudio: false,      // Optimizado: No consume recursos de micrófono
+        ResolutionPreset.veryHigh, // Calidad alta sin zoom digital
+        enableAudio: false,        // No consume recursos de micrófono
       );
 
       await cameraController!.initialize();

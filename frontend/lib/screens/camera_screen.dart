@@ -28,8 +28,19 @@ class CameraScreen extends StatelessWidget {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // Preview de la cámara seguro bajo la validación del Obx
-            CameraPreview(ctrl.cameraController!),
+            // Preview de la cámara respetando el lente físico sin recortes ni zoom
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.black,
+              child: Center(
+                child: AspectRatio(
+                  // Invertimos el ratio porque el celular está en modo vertical (Portrait)
+                  aspectRatio: 1 / ctrl.cameraController!.value.aspectRatio,
+                  child: CameraPreview(ctrl.cameraController!),
+                ),
+              ),
+            ),
 
             // Overlay oscuro en los bordes
             _buildVignette(),
@@ -299,7 +310,7 @@ class CameraScreen extends StatelessWidget {
               ),
             )),
 
-            // Cambiar cámara (Funcionalidad añadida)
+            // Cambiar cámara
             _IconButton(
               icon: Icons.flip_camera_ios_outlined,
               onTap: () async {
