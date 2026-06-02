@@ -9,7 +9,7 @@ import '../core/exceptions.dart';
 // se puede migrar a Drift sin cambiar la interfaz pública de este servicio
 
 class LocalDbService extends GetxService {
-  static const _dbName    = 'agrovision.db';
+  static const _dbName = 'agrovision.db';
   static const _dbVersion = 1;
 
   Database? _db;
@@ -21,7 +21,7 @@ class LocalDbService extends GetxService {
   }
 
   Future<void> _openDb() async {
-    final dir  = await getApplicationDocumentsDirectory();
+    final dir = await getApplicationDocumentsDirectory();
     final path = join(dir.path, _dbName);
 
     _db = await openDatabase(
@@ -71,7 +71,10 @@ class LocalDbService extends GetxService {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } catch (e) {
-      throw LocalDbException('Error al guardar escaneo', technicalDetail: e.toString());
+      throw LocalDbException(
+        'Error al guardar escaneo',
+        technicalDetail: e.toString(),
+      );
     }
   }
 
@@ -80,11 +83,14 @@ class LocalDbService extends GetxService {
       final rows = await _db!.query(
         'scans',
         orderBy: 'timestamp DESC',
-        limit:   limit,
+        limit: limit,
       );
       return rows.map(ScanResult.fromMap).toList();
     } catch (e) {
-      throw LocalDbException('Error al leer historial', technicalDetail: e.toString());
+      throw LocalDbException(
+        'Error al leer historial',
+        technicalDetail: e.toString(),
+      );
     }
   }
 
@@ -102,7 +108,7 @@ class LocalDbService extends GetxService {
   Future<List<ScanResult>> getScansWithLocation() async {
     final rows = await _db!.query(
       'scans',
-      where:   'latitude IS NOT NULL AND longitude IS NOT NULL',
+      where: 'latitude IS NOT NULL AND longitude IS NOT NULL',
       orderBy: 'timestamp DESC',
     );
     return rows.map(ScanResult.fromMap).toList();
@@ -113,17 +119,17 @@ class LocalDbService extends GetxService {
   Future<void> savePendingScan({
     required String scanId,
     required String imagePath,
-    double?  latitude,
-    double?  longitude,
-    String?  locationName,
+    double? latitude,
+    double? longitude,
+    String? locationName,
   }) async {
     await _db!.insert('pending_scans', {
-      'id':          scanId,
-      'imagePath':   imagePath,
-      'latitude':    latitude,
-      'longitude':   longitude,
+      'id': scanId,
+      'imagePath': imagePath,
+      'latitude': latitude,
+      'longitude': longitude,
       'locationName': locationName,
-      'createdAt':   DateTime.now().toIso8601String(),
+      'createdAt': DateTime.now().toIso8601String(),
     });
   }
 
@@ -136,7 +142,9 @@ class LocalDbService extends GetxService {
   }
 
   Future<int> getPendingCount() async {
-    final result = await _db!.rawQuery('SELECT COUNT(*) as count FROM pending_scans');
+    final result = await _db!.rawQuery(
+      'SELECT COUNT(*) as count FROM pending_scans',
+    );
     return Sqflite.firstIntValue(result) ?? 0;
   }
 

@@ -36,21 +36,23 @@ class AgroText {
 class AgroConfig {
   AgroConfig._();
 
-  // Cambiar por la URL de Ngrok de Dayana cuando esté disponible
-  // En producción cambiar por la URL real del servidor
-  //static const backendBaseUrl = 'http://10.0.2.2:8000'; // emulador Android
-  static const backendBaseUrl = 'http://192.168.1.204:8000'; // dispositivo físico
+  // IP local de tu máquina (Activa para tus pruebas)
+  static const backendBaseUrl = 'http://192.168.1.204:8000'; 
+  
+  // IPs del equipo (Comentadas para no perderlas en el repositorio)
+  // static const backendBaseUrl = 'http://192.168.0.223:8000'; 
+  // static const backendBaseUrl = 'http://10.0.2.2:8000'; 
 
   // Supabase — reemplazar con los datos reales del proyecto
-  static const supabaseUrl    = 'TU_SUPABASE_URL';
+  static const supabaseUrl     = 'TU_SUPABASE_URL';
   static const supabaseAnonKey = 'TU_SUPABASE_ANON_KEY';
 
   // IA externa
   static const geminiApiKey   = 'TU_GEMINI_KEY';
   static const plantnetApiKey = 'TU_PLANTNET_KEY';
 
-  // Umbrales del modelo
-  static const yoloThreshold  = 0.10; // confianza mínima para mostrar resultado
+  // Umbrales del modelo (Ajustado a 0.10 para evitar rechazos de cámara)
+  static const yoloThreshold  = 0.10; 
   static const yoloHighConf   = 0.75; // confianza alta → color verde
   static const yoloMidConf    = 0.55; // confianza media → color amarillo
 
