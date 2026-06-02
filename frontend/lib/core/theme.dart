@@ -9,10 +9,10 @@ class AgroTheme {
     scaffoldBackgroundColor: AgroColors.cream,
     colorScheme: ColorScheme.fromSeed(
       seedColor: AgroColors.green,
-      primary:   AgroColors.green,
+      primary: AgroColors.green,
       secondary: AgroColors.yellow,
-      surface:   AgroColors.cream,
-      error:     AgroColors.red,
+      surface: AgroColors.cream,
+      error: AgroColors.red,
     ),
 
     appBarTheme: const AppBarTheme(
@@ -35,9 +35,7 @@ class AgroTheme {
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: const TextStyle(
           fontFamily: AgroText.fontBody,
           fontSize: 15,
@@ -52,9 +50,7 @@ class AgroTheme {
         foregroundColor: AgroColors.green,
         side: const BorderSide(color: AgroColors.green, width: 1.5),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: const TextStyle(
           fontFamily: AgroText.fontBody,
           fontSize: 15,
@@ -63,8 +59,7 @@ class AgroTheme {
       ),
     ),
 
-    // CardThemeData en lugar de CardTheme
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: AgroColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -77,8 +72,7 @@ class AgroTheme {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AgroColors.surface,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AgroColors.border),

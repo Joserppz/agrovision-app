@@ -3,9 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 import shutil
 import os
+from pathlib import Path
 
 # Crear API
 app = FastAPI()
+
+BASE_DIR = Path(__file__).resolve().parent
 
 # Permitir conexión desde Flutter
 app.add_middleware(
@@ -17,10 +20,10 @@ app.add_middleware(
 )
 
 # Cargar modelo YOLO
-model = YOLO("models_jet/best.pt")
+model = YOLO(str(BASE_DIR / "models_jet" / "best.pt"))
 
 # Carpeta temporal para imágenes
-UPLOAD_FOLDER = "temp"
+UPLOAD_FOLDER = BASE_DIR / "temp"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
@@ -37,7 +40,7 @@ def home():
 async def predict(file: UploadFile = File(...)):
 
     # Guardar imagen temporalmente
-    file_path = f"{UPLOAD_FOLDER}/{file.filename}"
+    file_path = UPLOAD_FOLDER / file.filename
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
