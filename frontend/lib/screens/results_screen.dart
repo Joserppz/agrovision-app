@@ -208,10 +208,10 @@ class ResultsScreen extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _Tag(label: 'Tomate', color: AgroColors.green),
-              _Tag(label: 'Papa',   color: AgroColors.green),
+              const _Tag(label: 'Tomate', color: AgroColors.green),
+              const _Tag(label: 'Papa',   color: AgroColors.green),
               if (result.severityLevel == 'critical')
-                _Tag(label: 'Alta Humedad', color: AgroColors.yellow),
+                const _Tag(label: 'Alta Humedad', color: AgroColors.yellow),
             ],
           ),
         ],
@@ -220,7 +220,7 @@ class ResultsScreen extends StatelessWidget {
   }
 
   Widget _buildTreatmentCard(String? treatment) {
-    final steps = treatment != null
+    final steps = treatment != null && treatment.trim().isNotEmpty
         ? treatment.split('\n').where((s) => s.trim().isNotEmpty).toList()
         : [
             'Aislar las plantas afectadas para evitar propagación.',
@@ -245,49 +245,36 @@ class ResultsScreen extends StatelessWidget {
                   color: AgroColors.green, size: 18),
               SizedBox(width: 8),
               Text(
-                'Tratamiento recomendado',
+                'Plan de Acción Detallado',
                 style: TextStyle(
                   fontFamily: AgroText.fontBody,
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
                   color: AgroColors.green,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ...steps.asMap().entries.map((e) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+          const SizedBox(height: 14),
+          ...steps.map((paso) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 20, height: 20,
-                  decoration: const BoxDecoration(
-                    color: AgroColors.green,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${e.key + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: AgroText.fontBody,
-                      ),
-                    ),
-                  ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(Icons.check_circle,
+                      color: AgroColors.green, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    e.value,
+                    paso.trim(),
                     style: const TextStyle(
                       fontFamily: AgroText.fontBody,
-                      fontSize: 13,
+                      fontSize: 13.5,
                       color: AgroColors.textPrimary,
-                      height: 1.4,
+                      height: 1.45,
                     ),
                   ),
                 ),

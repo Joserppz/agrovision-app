@@ -17,3 +17,5 @@ backend/temp/
 
 # macOS
 .DS_Store
+
+.env

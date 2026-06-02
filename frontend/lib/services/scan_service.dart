@@ -57,9 +57,49 @@ class ScanService {
       throw agro_ex.NoConnectionException('No internet connection');
     }
 
-    // ── MODO REAL → enviar al backend ─────────────────────────────────────────
+    // ── MODO REAL → FUSIÓN DE MOTORES ─────────────────────────────────────────
     try {
-      final formData = FormData.fromMap({
+      // 1. ATAQUE RÁPIDO: MODELO YOLO LOCAL
+      bool yoloSuccess = false;
+      String yoloDisease = 'Other';
+      double yoloConfidence = 0.0;
+
+      try {
+        final formDataYolo = FormData.fromMap({
+          // El backend de YOLO espera el parámetro "file"
+          'file': await MultipartFile.fromFile(
+            imageFile.path,
+            filename: 'yolo_$scanId.jpg',
+          ),
+        });
+
+        final yoloResponse = await _api.postMultipart<Map<String, dynamic>>(
+          '/predict',
+          formDataYolo,
+        );
+
+        final yoloData = yoloResponse.data!;
+        
+        if (yoloData['success'] == true && yoloData['detections'] != null) {
+          final detections = yoloData['detections'] as List;
+          if (detections.isNotEmpty) {
+            final bestDetection = detections.first;
+            yoloDisease = bestDetection['disease'];
+            // YOLO devuelve la confianza x100 (ej. 95.5). La pasamos a 0.955
+            yoloConfidence = (bestDetection['confidence'] as num).toDouble() / 100.0;
+            yoloSuccess = true;
+            print('🎯 YOLO detectó: $yoloDisease (Confianza: $yoloConfidence)');
+          }
+        } else {
+          print('👀 YOLO no detectó nada. Dependeremos al 100% de Gemini.');
+        }
+      } catch (e) {
+        print('⚠️ YOLO falló (Puede que best.pt no esté cargado): $e');
+      }
+
+      // 2. RED DE SEGURIDAD Y TRATAMIENTOS: GEMINI
+      final formDataGemini = FormData.fromMap({
+        // El backend de Gemini espera el parámetro "image"
         'image': await MultipartFile.fromFile(
           imageFile.path,
           filename: 'scan_$scanId.jpg',
@@ -69,34 +109,46 @@ class ScanService {
         'scan_id': scanId,
       });
 
-      final response = await _api.postMultipart<Map<String, dynamic>>(
+      final geminiResponse = await _api.postMultipart<Map<String, dynamic>>(
         '/analyze',
-        formData,
+        formDataGemini,
       );
 
-      final data = response.data!;
-      print('📦 Respuesta backend: $data');
+      final geminiData = geminiResponse.data!;
+      print('🧠 Respuesta Gemini: $geminiData');
 
-      // Si Gemini dice que no es planta → informar al usuario
-      if (data['is_plant'] == false) {
+      if (geminiData['is_plant'] == false) {
         throw const agro_ex.LowConfidenceException(0.0);
       }
 
-      final confidence = (data['confidence'] as num).toDouble();
+      // 3. FUSIÓN TÁCTICA DE RESULTADOS
+      String finalDiseaseClass;
+      double finalConfidence;
 
-      // Threshold bajo (0.10) para que Gemini casi siempre pase
-      if (confidence < AgroConfig.yoloThreshold) {
-        throw agro_ex.LowConfidenceException(confidence);
+      if (yoloSuccess && yoloConfidence >= AgroConfig.yoloThreshold) {
+        // YOLO es confiable para esta planta: Usamos su diagnóstico y el tratamiento de la IA
+        finalDiseaseClass = yoloDisease;
+        finalConfidence = yoloConfidence;
+        print('🤝 Fusión: Diagnóstico YOLO + Tratamiento Gemini');
+      } else {
+        // YOLO falló o la planta es desconocida: Gemini toma el control total
+        finalDiseaseClass = geminiData['disease_class'] as String? ?? 'Other';
+        finalConfidence = (geminiData['confidence'] as num).toDouble();
+        print('🤝 Fusión: Diagnóstico Gemini + Tratamiento Gemini');
+
+        if (finalConfidence < AgroConfig.yoloThreshold) {
+          throw agro_ex.LowConfidenceException(finalConfidence);
+        }
       }
 
       final result = ScanResult(
-        id:           data['id'] as String? ?? scanId,
-        diseaseClass: data['disease_class'] as String? ?? 'Other',
-        confidence:   confidence,
-        treatment:    data['treatment'] as String? ?? '',
+        id:           geminiData['id'] as String? ?? scanId,
+        diseaseClass: finalDiseaseClass,
+        confidence:   finalConfidence,
+        treatment:    geminiData['treatment'] as String? ?? '',
         latitude:     latitude,
         longitude:    longitude,
-        locationName: data['location_name'] as String? ?? locationName,
+        locationName: geminiData['location_name'] as String? ?? locationName,
         timestamp:    DateTime.now(),
         imagePath:    imageFile.path,
         isSynced:     true,

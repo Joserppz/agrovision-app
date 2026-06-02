@@ -12,8 +12,8 @@ import 'connectivity_controller.dart';
 enum ScanState { idle, capturing, analyzing, success, error, lowConfidence }
 
 class ScanController extends GetxController {
-  final ScanService          _scanService;
-  final LocationService      _locationService;
+  final ScanService        _scanService;
+  final LocationService    _locationService;
   final ConnectivityController _connectivity;
 
   ScanController(this._scanService, this._locationService, this._connectivity);
@@ -60,15 +60,15 @@ class ScanController extends GetxController {
         orElse: () => available.first,
       );
 
-      // Si ya existía un controlador activo, lo liberamos de la memoria ram antes de crear otro
+      // Liberar memoria del controlador anterior
       if (cameraController != null) {
         await cameraController!.dispose();
       }
 
       cameraController = CameraController(
         selectedCamera,
-        ResolutionPreset.veryHigh, // Calidad alta sin zoom digital
-        enableAudio: false,        // No consume recursos de micrófono
+        ResolutionPreset.veryHigh, 
+        enableAudio: false,        
       );
 
       await cameraController!.initialize();
@@ -86,7 +86,6 @@ class ScanController extends GetxController {
     }
   }
 
-  // Alternar entre cámara trasera y frontal
   Future<void> toggleCamera() async {
     if (cameras.isEmpty) return;
     isFrontCamera.value = !isFrontCamera.value;
@@ -106,11 +105,11 @@ class ScanController extends GetxController {
       final xFile = await cameraController!.takePicture();
       capturedImage.value = File(xFile.path);
 
-      // 2. Navegar a la pantalla de loading mientras analizamos
+      // 2. Pantalla de carga
       state.value = ScanState.analyzing;
       Get.toNamed(AgroRoutes.loading);
 
-      // 3. Obtener ubicación si no la tenemos
+      // 3. Ubicación
       Position? pos = currentPosition.value;
       if (pos == null) {
         pos = await _locationService.getCurrentPosition();
@@ -124,7 +123,7 @@ class ScanController extends GetxController {
         );
       }
 
-      // 4. Enviar al backend (o encolar si offline)
+      // 4. Enviar al backend híbrido
       final scanResult = await _scanService.analyzeImage(
         imageFile:    capturedImage.value!,
         isOnline:     _connectivity.isOnline.value,
@@ -143,7 +142,7 @@ class ScanController extends GetxController {
       print("🚨 ERROR DE CONFIANZA BAJA: ${e.userMessage}");
       state.value   = ScanState.lowConfidence;
       errorMessage.value = e.userMessage;
-      Get.back(); // vuelve a la cámara
+      Get.back(); 
       _showError(e.userMessage);
 
     } on NoConnectionException catch (e) {
@@ -170,13 +169,11 @@ class ScanController extends GetxController {
     }
   }
 
-  // Analizar desde galería (imagen ya existente)
   Future<void> analyzeFromGallery(File imageFile) async {
     capturedImage.value = imageFile;
     await takePictureAndAnalyze();
   }
 
-  // Reiniciar para nuevo escaneo
   void reset() {
     state.value        = ScanState.idle;
     result.value       = null;

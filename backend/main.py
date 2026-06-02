@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from app.services.gemini_service import analyze_plant_with_gemini
+from app.services.groq_service import analyze_plant_with_groq
 
 # 1. Configuración Básica
 app = FastAPI(title="AgroVision AI Backend")
@@ -100,7 +100,7 @@ async def analyze_image(
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
 
-        ia_result = analyze_plant_with_gemini(temp_file_path)
+        ia_result = analyze_plant_with_groq(temp_file_path)
 
         return {
             "id":            scan_id or f"scan_{int(time.time())}",
