@@ -50,7 +50,7 @@ class AgroConfig {
   static const plantnetApiKey = 'TU_PLANTNET_KEY';
 
   // Umbrales del modelo
-  static const yoloThreshold  = 0.35; // confianza mínima para mostrar resultado
+  static const yoloThreshold  = 0.10; // confianza mínima para mostrar resultado
   static const yoloHighConf   = 0.75; // confianza alta → color verde
   static const yoloMidConf    = 0.55; // confianza media → color amarillo
 

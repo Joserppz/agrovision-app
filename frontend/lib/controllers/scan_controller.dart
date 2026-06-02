@@ -140,24 +140,29 @@ class ScanController extends GetxController {
       Get.offNamed(AgroRoutes.results);
 
     } on LowConfidenceException catch (e) {
+      print("🚨 ERROR DE CONFIANZA BAJA: ${e.userMessage}");
       state.value   = ScanState.lowConfidence;
       errorMessage.value = e.userMessage;
       Get.back(); // vuelve a la cámara
       _showError(e.userMessage);
 
     } on NoConnectionException catch (e) {
+      print("🚨 ERROR DE RED (Offline): ${e.userMessage}");
       state.value = ScanState.error;
       errorMessage.value = e.userMessage;
       Get.back();
       _showWarning(e.userMessage);
 
     } on AgroException catch (e) {
+      print("🚨 ERROR AGRO (Backend/Conexión): ${e.userMessage}");
       state.value = ScanState.error;
       errorMessage.value = e.userMessage;
       Get.back();
       _showError(e.userMessage);
 
-    } catch (e) {
+    } catch (e, stacktrace) {
+      print("🚨 ERROR DESCONOCIDO: $e");
+      print("🚨 DETALLE TÉCNICO: $stacktrace");
       state.value = ScanState.error;
       errorMessage.value = 'Error inesperado al analizar';
       if (Get.currentRoute == AgroRoutes.loading) Get.back();

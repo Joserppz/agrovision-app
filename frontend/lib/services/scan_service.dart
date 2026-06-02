@@ -1,67 +1,133 @@
 import 'dart:io';
-import 'package:dio/dio.dart' as dio;
-import 'package:frontend/services/api_service.dart';
-import 'package:frontend/services/local_db_service.dart';
+import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 import '../models/scan_result.dart';
-import '../core/exceptions.dart';
+import '../core/constants.dart';
+import '../core/exceptions.dart' as agro_ex;
+import 'api_service.dart';
+import 'local_db_service.dart';
 
 class ScanService {
-  final dio.Dio _dio = dio.Dio();
-  
-  // Recuerda usar tu IP local que descubrimos con el ipconfig
-  final String _baseUrl = "http://192.168.1.204:8000";
+  final ApiService     _api;
+  final LocalDbService _db;
+  final _uuid = const Uuid();
 
-  ScanService(ApiService find, LocalDbService find2);
+  ScanService(this._api, this._db);
+
+  // Cambia a true para probar sin backend ni planta real
+  static const bool _demoMode = false;
 
   Future<ScanResult> analyzeImage({
-    required File imageFile,
-    required bool isOnline,
-    double? latitude,
-    double? longitude,
-    String? locationName,
+    required File   imageFile,
+    required bool   isOnline,
+    double?         latitude,
+    double?         longitude,
+    String?         locationName,
   }) async {
-    // Si está offline, desviamos la lógica para guardar localmente
-    if (!isOnline) {
-      // Aquí simularás o guardarás en tu LocalDbService el pendiente
-      throw NoConnectionException("Sin internet. El escaneo se guardó localmente en el historial.");
+    final scanId = _uuid.v4();
+
+    // ── MODO DEMO ────────────────────────────────────────────────────────────
+    if (_demoMode) {
+      await Future.delayed(const Duration(seconds: 2));
+      final demo = ScanResult(
+        id:           scanId,
+        diseaseClass: 'Late-Blight',
+        confidence:   0.874,
+        treatment:    'Aislar las plantas afectadas.\nAplicar fungicida a base de cobre.\nReducir riego por aspersión.',
+        latitude:     latitude,
+        longitude:    longitude,
+        locationName: locationName ?? 'La Paz, Bolivia',
+        timestamp:    DateTime.now(),
+        imagePath:    imageFile.path,
+        isSynced:     false,
+      );
+      await _db.saveScan(demo);
+      return demo;
     }
 
-    try {
-      String fileName = imageFile.path.split('/').last;
+    // ── SIN CONEXIÓN → guardar en cola ───────────────────────────────────────
+    if (!isOnline) {
+      await _savePending(
+        scanId:       scanId,
+        imagePath:    imageFile.path,
+        latitude:     latitude,
+        longitude:    longitude,
+        locationName: locationName,
+      );
+      throw agro_ex.NoConnectionException('No internet connection');
+    }
 
-      // Crear el formulario Multipart con la foto y los metadatos del GPS
-      dio.FormData formData = dio.FormData.fromMap({
-        "image": await dio.MultipartFile.fromFile(imageFile.path, filename: fileName),
-        "latitude": latitude,
-        "longitude": longitude,
-        "location_name": locationName,
+    // ── MODO REAL → enviar al backend ─────────────────────────────────────────
+    try {
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: 'scan_$scanId.jpg',
+        ),
+        if (latitude  != null) 'latitude':  latitude.toString(),
+        if (longitude != null) 'longitude': longitude.toString(),
+        'scan_id': scanId,
       });
 
-      // Enviar la petición POST al backend
-      final response = await _dio.post(
-        "$_baseUrl/analyze",
-        data: formData,
-        options: dio.Options(
-          headers: {
-            "Accept": "application/json",
-          },
-        ),
+      final response = await _api.postMultipart<Map<String, dynamic>>(
+        '/analyze',
+        formData,
       );
 
-      if (response.statusCode == 200) {
-        // Mapear el JSON de respuesta de Python al modelo tipado de tu Flutter
-        return ScanResult.fromJson(response.data);
-      } else {
-        throw AgroException("El servidor respondió con un error al procesar.");
+      final data = response.data!;
+      print('📦 Respuesta backend: $data');
+
+      // Si Gemini dice que no es planta → informar al usuario
+      if (data['is_plant'] == false) {
+        throw const agro_ex.LowConfidenceException(0.0);
       }
-    } on dio.DioException catch (e) {
-      if (e.type == dio.DioExceptionType.connectionTimeout || 
-          e.type == dio.DioExceptionType.connectionError) {
-        throw AgroException("No se pudo conectar con el servidor de IA. Verifica que tu PC tenga el backend encendido.");
+
+      final confidence = (data['confidence'] as num).toDouble();
+
+      // Threshold bajo (0.10) para que Gemini casi siempre pase
+      if (confidence < AgroConfig.yoloThreshold) {
+        throw agro_ex.LowConfidenceException(confidence);
       }
-      throw AgroException("Error en la comunicación con el backend: ${e.message}");
+
+      final result = ScanResult(
+        id:           data['id'] as String? ?? scanId,
+        diseaseClass: data['disease_class'] as String? ?? 'Other',
+        confidence:   confidence,
+        treatment:    data['treatment'] as String? ?? '',
+        latitude:     latitude,
+        longitude:    longitude,
+        locationName: data['location_name'] as String? ?? locationName,
+        timestamp:    DateTime.now(),
+        imagePath:    imageFile.path,
+        isSynced:     true,
+      );
+
+      await _db.saveScan(result);
+      return result;
+
+    } on agro_ex.AgroException {
+      rethrow;
     } catch (e) {
-      throw AgroException("Error inesperado en el servicio de escaneo: $e");
+      throw agro_ex.AgroException(
+        'Error al analizar la imagen',
+        technicalDetail: e.toString(),
+      );
     }
+  }
+
+  Future<void> _savePending({
+    required String scanId,
+    required String imagePath,
+    double?  latitude,
+    double?  longitude,
+    String?  locationName,
+  }) async {
+    await _db.savePendingScan(
+      scanId:       scanId,
+      imagePath:    imagePath,
+      latitude:     latitude,
+      longitude:    longitude,
+      locationName: locationName,
+    );
   }
 }
