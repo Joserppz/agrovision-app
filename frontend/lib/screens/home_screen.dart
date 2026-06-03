@@ -29,24 +29,22 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     _buildTopHeader(controller),
                     const SizedBox(height: 24),
-                    _buildMainCard(),
+                    _buildMainCard(controller),
                     const SizedBox(height: 32),
                     _buildSectionTitle('Enfermedades detectables', 'Ver todas', controller.showAllDiseasesDialog),
                     const SizedBox(height: 16),
                     _buildHorizontalDiseaseList(),
                     
-                    // Renderizado condicional del último escaneo
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('Último escaneo', 'Ver historial', () => Get.toNamed(AgroRoutes.history)),
+                    const SizedBox(height: 16),
+                    
+                    // Renderizado condicional reactivo
                     Obx(() {
-                      if (!controller.hasLastScan.value) return const SizedBox.shrink();
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 32),
-                          _buildSectionTitle('Último escaneo', 'Ver historial', () => Get.toNamed(AgroRoutes.history)),
-                          const SizedBox(height: 16),
-                          _buildLastScan(controller),
-                        ],
-                      );
+                      if (!controller.hasLastScan.value) {
+                        return _buildEmptyScanCard();
+                      }
+                      return _buildLastScan(controller);
                     }),
                     
                     const SizedBox(height: 32),
@@ -62,7 +60,7 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: _buildBottomNav(controller),
     );
   }
 
@@ -108,7 +106,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMainCard() {
+  Widget _buildMainCard(HomeController controller) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -136,7 +134,10 @@ class HomeScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => Get.toNamed(AgroRoutes.camera),
+              onPressed: () {
+                // Al volver de la cámara, refresca el último registro
+                Get.toNamed(AgroRoutes.camera)?.then((_) => controller.onInit());
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AgroColors.greenLight,
                 foregroundColor: Colors.white,
@@ -210,6 +211,31 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildEmptyScanCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AgroColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AgroColors.border, style: BorderStyle.none),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AgroColors.border, borderRadius: BorderRadius.circular(16)),
+            child: const Icon(Icons.history_toggle_off, color: AgroColors.textHint),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Text('No hay ningún registro reciente. Escanea tu primer cultivo.', 
+              style: TextStyle(color: AgroColors.textHint, fontSize: 13, fontWeight: FontWeight.w500, height: 1.4)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLastScan(HomeController controller) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -276,7 +302,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(HomeController controller) {
     return Container(
       decoration: const BoxDecoration(
         color: AgroColors.surface,
@@ -289,7 +315,9 @@ class HomeScreen extends StatelessWidget {
         unselectedItemColor: AgroColors.textHint,
         onTap: (i) {
           if (i == 1) Get.toNamed(AgroRoutes.map);
-          if (i == 2) Get.toNamed(AgroRoutes.camera);
+          if (i == 2) {
+             Get.toNamed(AgroRoutes.camera)?.then((_) => controller.onInit());
+          }
           if (i == 3) Get.toNamed(AgroRoutes.history);
           if (i == 4) Get.toNamed(AgroRoutes.forum);
         },
