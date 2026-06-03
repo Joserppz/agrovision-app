@@ -9,14 +9,15 @@ class HistoryController extends GetxController {
 
   final scans      = <ScanResult>[].obs;
   final isLoading  = false.obs;
-  final filterLevel = 'all'.obs; // all | critical | moderate | healthy
+  
+  // NUEVO: Filtros basados en categoría botánica
+  final filterCategory = 'Todas'.obs; 
 
   @override
   void onInit() {
     super.onInit();
     loadHistory();
-    // Recarga cuando cambia el filtro
-    ever(filterLevel, (_) => _applyFilter());
+    ever(filterCategory, (_) => _applyFilter());
   }
 
   Future<void> loadHistory() async {
@@ -30,14 +31,16 @@ class HistoryController extends GetxController {
     }
   }
 
-  void _applyFilter() {
-    // La lista filtrada se calcula como getter — no necesitamos otra obs
-    // Los widgets usan filteredScans que llama a esto reactivamente
-  }
+  void _applyFilter() {}
 
   List<ScanResult> get filteredScans {
-    if (filterLevel.value == 'all') return scans;
-    return scans.where((s) => s.severityLevel == filterLevel.value).toList();
+    if (filterCategory.value == 'Todas') return scans;
+    
+    // Filtramos exactamente por el string de la categoría que nos devuelve Groq
+    return scans.where((s) {
+        final cat = s.plantCategory ?? 'Planta'; // Si es nulo, asumimos Planta
+        return cat.toLowerCase() == filterCategory.value.toLowerCase();
+    }).toList();
   }
 
   Future<void> deleteScan(String id) async {
@@ -45,5 +48,5 @@ class HistoryController extends GetxController {
     scans.removeWhere((s) => s.id == id);
   }
 
-  void setFilter(String level) => filterLevel.value = level;
+  void setFilter(String category) => filterCategory.value = category;
 }

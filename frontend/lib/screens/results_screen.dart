@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../core/constants.dart';
 import '../controllers/scan_controller.dart';
+import '../models/scan_result.dart';
 import '../widgets/confidence_badge.dart';
 
 class ResultsScreen extends StatelessWidget {
@@ -25,9 +26,7 @@ class ResultsScreen extends StatelessWidget {
         backgroundColor: AgroColors.cream,
         body: Column(
           children: [
-            // Imagen capturada con bounding box simulado
             _buildImageBand(ctrl),
-            // Contenido scrollable
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -63,7 +62,9 @@ class ResultsScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     if (result.hasLocation) _buildLocationCard(result),
                     if (result.hasLocation) const SizedBox(height: 12),
-                    _buildActionRow(ctrl),
+                    
+                    _buildActionRow(context, ctrl), 
+                    
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -81,7 +82,6 @@ class ResultsScreen extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // LÓGICA ACTUALIZADA DE IMAGEN (Lee de caché o lee de la memoria permanente)
           ctrl.capturedImage.value != null
               ? Image.file(ctrl.capturedImage.value!, fit: BoxFit.cover)
               : (ctrl.result.value?.imagePath != null)
@@ -92,11 +92,7 @@ class ResultsScreen extends StatelessWidget {
                         child: Icon(Icons.history_rounded, size: 40, color: Colors.white54),
                       ),
                     ),
-
-          // Overlay oscuro
           Container(color: Colors.black26),
-
-          // Bounding box
           if (ctrl.result.value != null && (ctrl.capturedImage.value != null || ctrl.result.value!.imagePath != null))
             Center(
               child: Container(
@@ -110,8 +106,7 @@ class ResultsScreen extends StatelessWidget {
                   child: Transform.translate(
                     offset: const Offset(0, -22),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: AgroColors.yellow,
                         borderRadius: BorderRadius.circular(4),
@@ -130,16 +125,11 @@ class ResultsScreen extends StatelessWidget {
                 ),
               ),
             ),
-
-          // Badge confianza arriba derecha
           if (ctrl.result.value != null)
             Positioned(
               top: 12, right: 12,
-              child: ConfidenceBadge(
-                  confidence: ctrl.result.value!.confidence),
+              child: ConfidenceBadge(confidence: ctrl.result.value!.confidence),
             ),
-
-          // Botón volver arriba izquierda
           Positioned(
             top: 8, left: 8,
             child: SafeArea(
@@ -151,8 +141,7 @@ class ResultsScreen extends StatelessWidget {
                     color: Colors.black38,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white, size: 16),
+                  child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
                 ),
               ),
             ),
@@ -205,9 +194,7 @@ class ResultsScreen extends StatelessWidget {
               _SeverityBadge(level: result.severityLevel),
             ],
           ),
-
           const SizedBox(height: 14),
-
           const Text(
             'SEVERIDAD ESTIMADA',
             style: TextStyle(
@@ -225,14 +212,10 @@ class ResultsScreen extends StatelessWidget {
               value: result.confidence,
               minHeight: 7,
               backgroundColor: AgroColors.border,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                result.severityColor,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(result.severityColor),
             ),
           ),
-
           const SizedBox(height: 14),
-
           Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -269,8 +252,7 @@ class ResultsScreen extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.medical_services_outlined,
-                  color: AgroColors.green, size: 18),
+              Icon(Icons.medical_services_outlined, color: AgroColors.green, size: 18),
               SizedBox(width: 8),
               Text(
                 'Plan de Acción Detallado',
@@ -291,8 +273,7 @@ class ResultsScreen extends StatelessWidget {
               children: [
                 const Padding(
                   padding: EdgeInsets.only(top: 2),
-                  child: Icon(Icons.check_circle,
-                      color: AgroColors.green, size: 20),
+                  child: Icon(Icons.check_circle, color: AgroColors.green, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -338,8 +319,7 @@ class ResultsScreen extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.location_on_outlined,
-                  color: AgroColors.brown, size: 14),
+              const Icon(Icons.location_on_outlined, color: AgroColors.brown, size: 14),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -373,25 +353,22 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionRow(ScanController ctrl) {
+  Widget _buildActionRow(BuildContext context, ScanController ctrl) {
     bool isFromHistory = ctrl.capturedImage.value == null;
 
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () async {
-              // LÓGICA DE GUARDADO CORREGIDA: Solo guarda si presionas el botón
+            onPressed: () {
               if (!isFromHistory) {
-                await ctrl.saveCurrentScan();
-                Get.snackbar('✓ Guardado',
-                    'El resultado se guardó en tu historial',
-                    snackPosition: SnackPosition.BOTTOM);
+                _showSaveDialog(context, ctrl, ctrl.result.value!);
+              } else {
+                Get.offNamed(AgroRoutes.home);
               }
-              Get.offNamed(AgroRoutes.home);
             },
-            icon: Icon(isFromHistory ? Icons.home_rounded : Icons.check_rounded, size: 18),
-            label: Text(isFromHistory ? 'Volver al Inicio' : 'Guardar'),
+            icon: Icon(isFromHistory ? Icons.home_rounded : Icons.save_rounded, size: 18),
+            label: Text(isFromHistory ? 'Volver al Inicio' : 'Guardar en Granja'),
           ),
         ),
         const SizedBox(width: 10),
@@ -406,6 +383,91 @@ class ResultsScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  // DIÁLOGO CORREGIDO CON SingleChildScrollView PARA EVITAR EL OVERFLOW DEL TECLADO
+  void _showSaveDialog(BuildContext context, ScanController ctrl, ScanResult currentResult) {
+    final nameCtrl = TextEditingController(text: currentResult.displayName);
+    String selectedCat = 'Otros';
+    final validCats = ['Fruta', 'Verdura', 'Planta', 'Flor', 'Otros'];
+    
+    if (currentResult.plantCategory != null) {
+      final catLower = currentResult.plantCategory!.toLowerCase();
+      if (catLower.contains('frut')) selectedCat = 'Fruta';
+      else if (catLower.contains('verd')) selectedCat = 'Verdura';
+      else if (catLower.contains('flor')) selectedCat = 'Flor';
+      else if (catLower.contains('plant')) selectedCat = 'Planta';
+    }
+
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: AgroColors.cream,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Guardar Cultivo', style: TextStyle(color: AgroColors.green, fontFamily: AgroText.fontDisplay, fontWeight: FontWeight.bold)),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            // SOLUCIÓN: Envolver la columna en SingleChildScrollView
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Nombre del registro:', style: TextStyle(fontSize: 13, color: AgroColors.brown, fontFamily: AgroText.fontBody, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: nameCtrl,
+                    style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 14),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AgroColors.border)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AgroColors.green)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('Clasificación Botánica:', style: TextStyle(fontSize: 13, color: AgroColors.brown, fontFamily: AgroText.fontBody, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: validCats.map((cat) {
+                      final isSelected = selectedCat == cat;
+                      return ChoiceChip(
+                        label: Text(cat, style: TextStyle(color: isSelected ? Colors.white : AgroColors.textPrimary, fontSize: 12, fontFamily: AgroText.fontBody)),
+                        selected: isSelected,
+                        selectedColor: AgroColors.green,
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isSelected ? AgroColors.green : AgroColors.border)),
+                        onSelected: (bool selected) {
+                          setState(() { selectedCat = cat; });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar', style: TextStyle(color: AgroColors.textSecondary, fontFamily: AgroText.fontBody)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AgroColors.green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () async {
+              Get.back(); 
+              await ctrl.saveCurrentScan(customName: nameCtrl.text.trim(), category: selectedCat);
+              Get.snackbar('✓ Guardado', 'El cultivo se guardó en tu granja', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.white);
+              Get.offNamed(AgroRoutes.home);
+            },
+            child: const Text('Confirmar y Guardar', style: TextStyle(color: Colors.white, fontFamily: AgroText.fontBody)),
+          ),
+        ],
+      ),
     );
   }
 }

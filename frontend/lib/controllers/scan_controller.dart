@@ -134,8 +134,6 @@ class ScanController extends GetxController {
         locationName: locationName,
       );
 
-      // YA NO GUARDAMOS AUTOMÁTICAMENTE AQUÍ.
-      // Solo dejamos el resultado listo para mostrarse en pantalla.
       result.value = scanResult;
       state.value  = ScanState.success;
       Get.offNamed(AgroRoutes.results);
@@ -163,8 +161,8 @@ class ScanController extends GetxController {
     }
   }
 
-  // NUEVO: Función exclusiva para guardar cuando el usuario lo pida
-  Future<void> saveCurrentScan() async {
+  // LÓGICA DE GUARDADO MANUAL ACTUALIZADA
+  Future<void> saveCurrentScan({required String customName, required String category}) async {
     final currentResult = result.value;
     final currentImage = capturedImage.value;
     
@@ -173,11 +171,14 @@ class ScanController extends GetxController {
         final dir = await getApplicationDocumentsDirectory();
         final localPath = '${dir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
         
-        // Copiamos la imagen a la memoria permanente
         await currentImage.copy(localPath);
         
-        // Actualizamos la ruta permanente y guardamos en la base de datos
-        final resultToSave = currentResult.copyWith(imagePath: localPath);
+        final resultToSave = currentResult.copyWith(
+          diseaseName: customName,
+          plantCategory: category,
+          imagePath: localPath
+        );
+        
         await Get.find<LocalDbService>().saveScan(resultToSave);
       } catch (e) {
         print("🚨 Error al guardar el escaneo: $e");

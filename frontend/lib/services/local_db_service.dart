@@ -5,14 +5,11 @@ import 'package:sqflite/sqflite.dart';
 import '../models/scan_result.dart';
 import '../core/exceptions.dart';
 
-// Usamos sqflite directo por simplicidad — si el proyecto crece
-// se puede migrar a Drift sin cambiar la interfaz pública de este servicio
-
 class LocalDbService extends GetxService {
   static const _dbName = 'agrovision.db';
   
-  // 1. CAMBIO CLAVE: Subimos la versión a 2 para obligar a SQLite a refrescarse
-  static const _dbVersion = 2; 
+  // CAMBIO CLAVE: Subimos la versión a 3 para agregar plantCategory
+  static const _dbVersion = 3; 
 
   Database? _db;
 
@@ -30,20 +27,20 @@ class LocalDbService extends GetxService {
       path,
       version: _dbVersion,
       onCreate: _createTables,
-      onUpgrade: _onUpgrade, // Agregamos el manejador de actualizaciones por seguridad
+      onUpgrade: _onUpgrade, 
     );
   }
 
   Future<void> _createTables(Database db, int version) async {
-    // Tabla principal de escaneos ACTUALIZADA para la IA
     await db.execute('''
       CREATE TABLE scans (
         id            TEXT PRIMARY KEY,
         diseaseClass  TEXT NOT NULL,
         confidence    REAL NOT NULL,
-        description   TEXT,        -- NUEVO columna para la IA
-        diseaseName   TEXT,        -- NUEVO columna para la IA
-        isPlant       INTEGER NOT NULL DEFAULT 1, -- NUEVO columna para la IA
+        plantCategory TEXT,        -- NUEVO columna para la categoría (Fruta, Verdura...)
+        description   TEXT,        
+        diseaseName   TEXT,        
+        isPlant       INTEGER NOT NULL DEFAULT 1, 
         treatment     TEXT,
         latitude      REAL,
         longitude     REAL,
@@ -54,7 +51,6 @@ class LocalDbService extends GetxService {
       )
     ''');
 
-    // Cola de escaneos pendientes de sincronizar (sin resultado aún)
     await db.execute('''
       CREATE TABLE pending_scans (
         id            TEXT PRIMARY KEY,
@@ -67,9 +63,8 @@ class LocalDbService extends GetxService {
     ''');
   }
 
-  // Si la base de datos ya existía en el teléfono, este método destruye la vieja y monta la nueva
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
+    if (oldVersion < 3) {
       await db.execute('DROP TABLE IF EXISTS scans');
       await db.execute('DROP TABLE IF EXISTS pending_scans');
       await _createTables(db, newVersion);
@@ -119,7 +114,6 @@ class LocalDbService extends GetxService {
     await _db!.delete('scans', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Todos los escaneos con coordenadas (para el mapa)
   Future<List<ScanResult>> getScansWithLocation() async {
     final rows = await _db!.query(
       'scans',

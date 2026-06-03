@@ -13,15 +13,17 @@ class MapController extends GetxController {
   final scanPoints      = <ScanResult>[].obs;
   final currentPosition = Rxn<LatLng>();
   final isLoading       = false.obs;
-  final selectedFilter  = 'all'.obs;
+  
+  // Filtros
+  final selectedCategory = 'Todas'.obs; // Fruta, Verdura, Planta, Flor, Otros
+  final isHeatmapMode    = false.obs;   // Toggle de mapa de calor
 
-  // Centro por defecto: La Paz, Bolivia
   static const defaultCenter = LatLng(-16.5000, -68.1500);
 
   @override
-  void onInit() {
+  Future<void> onInit() async {
     super.onInit();
-    loadPoints();
+    await loadPoints();
     _loadCurrentPosition();
   }
 
@@ -37,20 +39,31 @@ class MapController extends GetxController {
 
   Future<void> _loadCurrentPosition() async {
     final pos = await _location.getCurrentPosition();
-    if (pos != null) {
-      currentPosition.value = LatLng(pos.latitude, pos.longitude);
-    }
+    if (pos != null) currentPosition.value = LatLng(pos.latitude, pos.longitude);
   }
 
-  // CORRECCIÓN: Filtramos por el nivel de severidad en lugar de la clase exacta
   List<ScanResult> get filteredPoints {
-    if (selectedFilter.value == 'all') return scanPoints;
-    return scanPoints
-        .where((s) => s.severityLevel == selectedFilter.value)
-        .toList();
+    if (selectedCategory.value == 'Todas') return scanPoints;
+    return scanPoints.where((s) => (s.plantCategory ?? 'Otros') == selectedCategory.value).toList();
   }
 
-  void setFilter(String filter) => selectedFilter.value = filter;
+  // Lógica para evitar puntos duplicados si estás parado sobre un escaneo
+  bool get isCurrentPositionUnique {
+    if (currentPosition.value == null) return false;
+    if (filteredPoints.isEmpty) return true;
+    
+    final Distance distance = const Distance();
+    for(var p in filteredPoints) {
+      if (p.hasLocation) {
+        final d = distance.as(LengthUnit.Meter, currentPosition.value!, LatLng(p.latitude!, p.longitude!));
+        if (d < 20) return false;
+      }
+    }
+    return true;
+  }
+
+  void toggleHeatmap() => isHeatmapMode.value = !isHeatmapMode.value;
+  void setCategory(String cat) => selectedCategory.value = cat;
 
   LatLng get mapCenter => currentPosition.value ?? defaultCenter;
 }

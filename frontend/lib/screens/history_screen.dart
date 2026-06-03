@@ -3,13 +3,26 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../core/constants.dart';
 import '../controllers/history_controller.dart';
-import '../controllers/scan_controller.dart'; // IMPORTANTE: Importamos el controlador de escaneo
+import '../controllers/scan_controller.dart'; 
 import '../models/scan_result.dart';
 import '../widgets/offline_banner.dart';
 import '../controllers/connectivity_controller.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +38,6 @@ class HistoryScreen extends StatelessWidget {
                 ? const SizedBox.shrink()
                 : const OfflineBanner()),
 
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -36,7 +48,7 @@ class HistoryScreen extends StatelessWidget {
                         color: AgroColors.green, size: 20),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Historial de escaneos',
+                  const Text('Historial',
                       style: TextStyle(
                         fontFamily: AgroText.fontDisplay,
                         fontSize: 20,
@@ -45,54 +57,97 @@ class HistoryScreen extends StatelessWidget {
                       )),
                   const Spacer(),
                   GestureDetector(
-                    onTap: ctrl.loadHistory,
+                    onTap: () {
+                      _searchCtrl.clear(); 
+                      ctrl.loadHistory();
+                    },
                     child: const Icon(Icons.refresh_rounded,
                         color: AgroColors.green, size: 22),
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: () => _confirmDeleteAll(context, ctrl),
+                    child: const Icon(Icons.delete_sweep_rounded,
+                        color: AgroColors.red, size: 22),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
-            // Filtros
-            _buildFilters(ctrl),
-
-            const SizedBox(height: 8),
-
-            // Resumen
-            Obx(() => Padding(
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                height: 40,
                 decoration: BoxDecoration(
-                  color: AgroColors.greenFaint,
+                  color: AgroColors.surface,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AgroColors.border),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.bar_chart_rounded,
-                        color: AgroColors.green, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${ctrl.scans.length} escaneos totales · '
-                      '${ctrl.scans.where((s) => s.severityLevel != 'healthy').length} enfermedades',
-                      style: const TextStyle(
+                child: TextField(
+                  controller: _searchCtrl,
+                  style: const TextStyle(
+                      fontFamily: AgroText.fontBody, fontSize: 14),
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar planta o enfermedad...',
+                    hintStyle: TextStyle(
                         fontFamily: AgroText.fontBody,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AgroColors.green,
-                      ),
-                    ),
-                  ],
+                        color: AgroColors.textHint,
+                        fontSize: 14),
+                    prefixIcon: Icon(Icons.search_rounded,
+                        color: AgroColors.green, size: 20),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: (value) {
+                    setState(() {});
+                  },
                 ),
               ),
-            )),
+            ),
+
+            const SizedBox(height: 12),
+
+            _buildFilters(ctrl),
+
+            const SizedBox(height: 12),
+
+            Obx(() {
+              final total = ctrl.scans.length;
+              final enfermas = ctrl.scans.where((s) => s.severityLevel != 'healthy').length;
+              
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AgroColors.greenFaint,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.bar_chart_rounded,
+                          color: AgroColors.green, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$total registros · $enfermas con novedades',
+                        style: const TextStyle(
+                          fontFamily: AgroText.fontBody,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AgroColors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
 
             const SizedBox(height: 8),
 
-            // Lista
             Expanded(
               child: Obx(() {
                 if (ctrl.isLoading.value) {
@@ -102,7 +157,15 @@ class HistoryScreen extends StatelessWidget {
                   );
                 }
 
-                final items = ctrl.filteredScans;
+                List<ScanResult> items = ctrl.filteredScans;
+
+                final searchTerm = _searchCtrl.text.toLowerCase();
+                if (searchTerm.isNotEmpty) {
+                  items = items.where((scan) {
+                    return scan.displayName.toLowerCase().contains(searchTerm) ||
+                           (scan.description?.toLowerCase().contains(searchTerm) ?? false);
+                  }).toList();
+                }
 
                 if (items.isEmpty) {
                   return Center(
@@ -112,17 +175,18 @@ class HistoryScreen extends StatelessWidget {
                         const Icon(Icons.eco_outlined,
                             color: AgroColors.border, size: 56),
                         const SizedBox(height: 12),
-                        Text('No hay escaneos aún',
+                        Text('No hay escaneos que mostrar',
                             style: Get.textTheme.bodyMedium?.copyWith(
                                 color: AgroColors.textHint)),
                         const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () =>
-                              Get.toNamed(AgroRoutes.camera),
-                          icon: const Icon(
-                              Icons.camera_alt_outlined, size: 16),
-                          label: const Text('Escanear ahora'),
-                        ),
+                        if (ctrl.scans.isEmpty) 
+                          ElevatedButton.icon(
+                            onPressed: () =>
+                                Get.toNamed(AgroRoutes.camera),
+                            icon: const Icon(
+                                Icons.camera_alt_outlined, size: 16),
+                            label: const Text('Escanear ahora'),
+                          ),
                       ],
                     ),
                   );
@@ -149,11 +213,14 @@ class HistoryScreen extends StatelessWidget {
   }
 
   Widget _buildFilters(HistoryController ctrl) {
+    // NUEVO: 'Otros' agregado a la botonera de la granja
     final filters = [
-      ('all',      'Todos'),
-      ('critical', 'Crítico'),
-      ('moderate', 'Moderado'),
-      ('healthy',  'Sano'),
+      'Todas',
+      'Fruta',
+      'Verdura',
+      'Planta',
+      'Flor',
+      'Otros' 
     ];
 
     return SizedBox(
@@ -161,36 +228,71 @@ class HistoryScreen extends StatelessWidget {
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        children: filters.map((f) => Obx(() => Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: GestureDetector(
-            onTap: () => ctrl.setFilter(f.$1),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 7),
-              decoration: BoxDecoration(
-                color: ctrl.filterLevel.value == f.$1
-                    ? AgroColors.green
-                    : AgroColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: ctrl.filterLevel.value == f.$1
+        children: filters.map((f) => Obx(() {
+          final isSelected = ctrl.filterCategory.value == f;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => ctrl.setFilter(f),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isSelected
                       ? AgroColors.green
-                      : AgroColors.border,
+                      : AgroColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected
+                        ? AgroColors.green
+                        : AgroColors.border,
+                  ),
                 ),
+                child: Text(f,
+                  style: TextStyle(
+                    fontFamily: AgroText.fontBody,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected
+                        ? Colors.white
+                        : AgroColors.textSecondary,
+                  )),
               ),
-              child: Text(f.$2,
-                style: TextStyle(
-                  fontFamily: AgroText.fontBody,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: ctrl.filterLevel.value == f.$1
-                      ? Colors.white
-                      : AgroColors.textSecondary,
-                )),
             ),
+          );
+        })).toList(),
+      ),
+    );
+  }
+
+  void _confirmDeleteAll(BuildContext context, HistoryController ctrl) {
+    if (ctrl.scans.isEmpty) return; 
+
+    Get.dialog(
+      AlertDialog(
+        title: const Text('¿Borrar todo el historial?', 
+          style: TextStyle(fontFamily: AgroText.fontDisplay, color: AgroColors.green, fontWeight: FontWeight.bold)),
+        content: const Text('Esta acción eliminará todos los registros guardados permanentemente y no se puede deshacer.',
+          style: TextStyle(fontFamily: AgroText.fontBody)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar', style: TextStyle(color: AgroColors.textSecondary)),
           ),
-        ))).toList(),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AgroColors.red),
+            onPressed: () async {
+              Get.back();
+              for (var scan in ctrl.scans.toList()) {
+                await ctrl.deleteScan(scan.id);
+              }
+              Get.snackbar('Historial limpio', 'Se han borrado todos los escaneos.',
+                snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.white);
+            },
+            child: const Text('Borrar Todo', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -220,19 +322,11 @@ class _HistoryCard extends StatelessWidget {
       ),
       onDismissed: (_) => ctrl.deleteScan(scan.id),
       
-      // NUEVO: Envolvemos en GestureDetector para poder tocar el historial
       child: GestureDetector(
         onTap: () {
-          // Cargamos el controlador de escaneo (debe estar registrado en la app)
-          // Evitamos usar Get.put() porque ScanController requiere argumentos.
           final scanCtrl = Get.find<ScanController>();
-              
-          // Le inyectamos el resultado histórico
           scanCtrl.result.value = scan;
-          // Limpiamos la imagen temporal para que muestre el recuadro gris
           scanCtrl.capturedImage.value = null; 
-          
-          // Navegamos al Result Screen
           Get.toNamed(AgroRoutes.results);
         },
         child: Container(
@@ -247,7 +341,6 @@ class _HistoryCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  // Icono de enfermedad
                   Container(
                     width: 50, height: 50,
                     decoration: BoxDecoration(
@@ -265,7 +358,6 @@ class _HistoryCard extends StatelessWidget {
 
                   const SizedBox(width: 14),
 
-                  // Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,7 +382,6 @@ class _HistoryCard extends StatelessWidget {
                     ),
                   ),
 
-                  // Confianza + flecha
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -318,7 +409,6 @@ class _HistoryCard extends StatelessWidget {
                 ],
               ),
               
-              // NUEVO: Agregamos un pequeño extracto de la descripción si la IA lo detectó
               if (scan.description != null && scan.description!.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(
