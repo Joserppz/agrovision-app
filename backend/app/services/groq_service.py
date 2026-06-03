@@ -12,14 +12,20 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
-def analyze_plant_with_groq(image_path: str, yolo_disease: str = None) -> dict:
+def analyze_plant_with_groq(image_path: str, yolo_disease: str = None, yolo_plant: str = None) -> dict:
     try:
         base64_image = encode_image(image_path)
         
         prompt = "Eres una Inteligencia Artificial experta en botánica y fitopatología capaz de reconocer CUALQUIER especie del reino Plantae. Analiza esta imagen minuciosamente.\n"
         
-        if yolo_disease and yolo_disease not in ["Desconocido", "Other"]:
-            prompt += f"NOTA: El modelo matemático del sistema detectó: '{yolo_disease}'. Evalúa la imagen de forma independiente. Si NO coincide, descarta la sugerencia e identifica la ESPECIE REAL.\n"
+        # Inyectamos los datos de los modelos locales si existen
+        if (yolo_plant and yolo_plant not in ["Desconocido", "Other"]) or (yolo_disease and yolo_disease not in ["Desconocido", "Other"]):
+            prompt += "NOTA: El modelo matemático del sistema (Edge Computing) detectó localmente lo siguiente:\n"
+            if yolo_plant and yolo_plant not in ["Desconocido", "Other"]:
+                prompt += f"- Planta/Especie: '{yolo_plant}'\n"
+            if yolo_disease and yolo_disease not in ["Desconocido", "Other"]:
+                prompt += f"- Enfermedad/Estado: '{yolo_disease}'\n"
+            prompt += "Evalúa la imagen de forma independiente. Si NO coincide con lo que ves, descarta la sugerencia e identifica la ESPECIE y ESTADO REAL.\n"
         
         prompt += """
         Tu tarea es:
@@ -36,10 +42,10 @@ def analyze_plant_with_groq(image_path: str, yolo_disease: str = None) -> dict:
             "confidence": 0.95,
             "description": "Explica brevemente qué especie has identificado y por qué está sana o enferma.",
             "treatmentSteps": [
-                "✂️ Acción Inmediata: [Qué hacer con la planta ahora mismo]",
-                "🌱 Tratamiento Orgánico: [Solución casera o ecológica]",
-                "🧪 Tratamiento Químico: [Fungicida recomendado]",
-                "💧 Prevención: [Cómo ajustar el riego, luz o humedad]"
+                "Acción Inmediata: [Qué hacer con la planta ahora mismo]",
+                "Tratamiento Orgánico: [Solución casera o ecológica]",
+                "Tratamiento Químico: [Fungicida recomendado]",
+                "Prevención: [Cómo ajustar el riego, luz o humedad]"
             ]
         }
         Si en la imagen NO hay absolutamente nada de vegetación, devuelve:
@@ -61,7 +67,7 @@ def analyze_plant_with_groq(image_path: str, yolo_disease: str = None) -> dict:
                     ],
                 }
             ],
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            model="llama-3.2-11b-vision-preview",
             temperature=0.0, 
         )
         
@@ -82,5 +88,5 @@ def analyze_plant_with_groq(image_path: str, yolo_disease: str = None) -> dict:
             "diseaseName": "Error de Análisis IA",
             "confidence": 0.0,
             "description": "Hubo un problema procesando el diagnóstico con Inteligencia Artificial.",
-            "treatmentSteps": ["Verifica la conexión a internet."]
+            "treatmentSteps": ["Verifica la conexión a internet y tus tokens."]
         }

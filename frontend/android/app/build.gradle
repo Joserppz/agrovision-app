@@ -1,7 +1,6 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
 }
 
@@ -13,38 +12,26 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
-if (flutterVersionCode == null) {
-    flutterVersionCode = "1"
-}
-
-def flutterVersionName = localProperties.getProperty("flutter.versionName")
-if (flutterVersionName == null) {
-    flutterVersionName = "1.0"
-}
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
 
 android {
     namespace = "com.example.frontend"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "25.1.8937393"
 
-    // Actualizado: Cambiado de VERSION_1_8 a VERSION_17 para soportar las herramientas de Java 21 sin romper el análisis semántico
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // Actualizado: Añadido bloque KotlinOptions para que el compilador de Kotlin también use la JVM correcta
     kotlinOptions {
         jvmTarget = '17'
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.frontend"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdk = 21 // Forzado a 21 mínimo, requerido por la mayoría de las librerías nativas actuales como Sqflite/Hive
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
@@ -52,8 +39,6 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.debug
         }
     }
@@ -61,4 +46,17 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// SOLUCIÓN DEFINITIVA: Forzar namespace en subproyectos (librerías)
+afterEvaluate {
+    subprojects {
+        if (it.hasProperty('android')) {
+            it.android {
+                if (namespace == null) {
+                    namespace "com.example.${it.name.replaceAll('[^a-zA-Z0-9]', '')}"
+                }
+            }
+        }
+    }
 }

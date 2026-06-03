@@ -5,7 +5,6 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // Añadido: Indica la versión de las herramientas de Android compatible con Gradle 8.5
         classpath 'com.android.tools.build:gradle:8.2.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
@@ -19,14 +18,26 @@ allprojects {
 }
 
 rootProject.buildDir = "../build"
+
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
+    
+    // EL PARCHE VA AQUÍ ADENTRO, antes de que Flutter evalúe el ":app"
+    afterEvaluate {
+        if (hasProperty('android')) {
+            android {
+                if (namespace == null) {
+                    namespace project.group
+                }
+            }
+        }
+    }
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Actualizado: Sintaxis moderna para limpiar la carpeta build en Gradle 8.x
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
