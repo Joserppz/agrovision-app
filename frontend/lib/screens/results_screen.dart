@@ -368,7 +368,7 @@ class ResultsScreen extends StatelessWidget {
               }
             },
             icon: Icon(isFromHistory ? Icons.home_rounded : Icons.save_rounded, size: 18),
-            label: Text(isFromHistory ? 'Volver al Inicio' : 'Guardar en Granja'),
+            label: Text(isFromHistory ? 'Volver al Inicio' : 'Guardar'),
           ),
         ),
         const SizedBox(width: 10),
@@ -404,7 +404,7 @@ class ResultsScreen extends StatelessWidget {
       AlertDialog(
         backgroundColor: AgroColors.cream,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Guardar Cultivo', style: TextStyle(color: AgroColors.green, fontFamily: AgroText.fontDisplay, fontWeight: FontWeight.bold)),
+        title: const Text('Guardar', style: TextStyle(color: AgroColors.green, fontFamily: AgroText.fontDisplay, fontWeight: FontWeight.bold)),
         content: StatefulBuilder(
           builder: (context, setState) {
             // SOLUCIÓN: Envolver la columna en SingleChildScrollView
@@ -427,7 +427,7 @@ class ResultsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Clasificación Botánica:', style: TextStyle(fontSize: 13, color: AgroColors.brown, fontFamily: AgroText.fontBody, fontWeight: FontWeight.bold)),
+                  const Text('Clasificación:', style: TextStyle(fontSize: 13, color: AgroColors.brown, fontFamily: AgroText.fontBody, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -461,7 +461,7 @@ class ResultsScreen extends StatelessWidget {
             onPressed: () async {
               Get.back(); 
               await ctrl.saveCurrentScan(customName: nameCtrl.text.trim(), category: selectedCat);
-              Get.snackbar('✓ Guardado', 'El cultivo se guardó en tu granja', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.white);
+              Get.snackbar('✓ Guardado', 'El registro se guardó en el historial', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.white);
               Get.offNamed(AgroRoutes.home);
             },
             child: const Text('Confirmar y Guardar', style: TextStyle(color: Colors.white, fontFamily: AgroText.fontBody)),

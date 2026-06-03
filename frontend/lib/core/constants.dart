@@ -103,6 +103,11 @@ class DiseaseLabels {
       'science': 'Phytophthora infestans',
       'level':   'critical',
     },
+    'Early-Blight': {
+      'name':    'Tizón Temprano',
+      'science': 'Alternaria solani',
+      'level':   'moderate',
+    },
     'Septoria-Leaf-Spot': {
       'name':    'Mancha Foliar',
       'science': 'Septoria lycopersici',
@@ -111,6 +116,31 @@ class DiseaseLabels {
     'Spider-Mites': {
       'name':    'Arañuela Roja',
       'science': 'Tetranychus urticae',
+      'level':   'moderate',
+    },
+    'Leaf-Mold': {
+      'name':    'Moho de la Hoja',
+      'science': 'Passalora fulva',
+      'level':   'moderate',
+    },
+    'Target-Spot': {
+      'name':    'Mancha Blanca',
+      'science': 'Corynespora cassiicola',
+      'level':   'moderate',
+    },
+    'Yellow-Leaf-Curl-Virus': {
+      'name':    'Virus de la Cuchara',
+      'science': 'Begomovirus',
+      'level':   'critical',
+    },
+    'Mosaic-Virus': {
+      'name':    'Virus del Mosaico',
+      'science': 'Tobamovirus',
+      'level':   'critical',
+    },
+    'Powdery-Mildew': {
+      'name':    'Oídio',
+      'science': 'Oidium neolycopersici',
       'level':   'moderate',
     },
     'Healthy': {

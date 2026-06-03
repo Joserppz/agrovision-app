@@ -1,9 +1,11 @@
 import '../core/constants.dart';
 import 'package:flutter/material.dart';
+import '../core/plantae_dictionary.dart'; // Ajusta la ruta correcta
 
 class ScanResult {
   final String id;
   final String diseaseClass;   // clase exacta del modelo: "Late-Blight"
+  final String? plantClass;    // NUEVO: clase exacta de la planta: "apple", "tomato"
   final double confidence;      // 0.0 a 1.0
   final String? plantCategory;  // 'Fruta', 'Verdura', 'Flor', 'Planta', 'Otros'
   final String? description;    // Descripción detallada de Groq
@@ -20,6 +22,7 @@ class ScanResult {
   const ScanResult({
     required this.id,
     required this.diseaseClass,
+    this.plantClass,
     required this.confidence,
     this.plantCategory,
     this.description,
@@ -34,6 +37,7 @@ class ScanResult {
     this.isSynced = false,
   });
 
+  // --- GETTERS DE ENFERMEDADES ---
   String get displayName => diseaseName ?? DiseaseLabels.get(diseaseClass)['name'] ?? diseaseClass;
   String get scientificName => DiseaseLabels.get(diseaseClass)['science'] ?? '';
   String get severityLevel => DiseaseLabels.get(diseaseClass)['level'] ?? 'unknown';
@@ -41,9 +45,16 @@ class ScanResult {
   Color get severityColor => DiseaseLabels.colorForLevel(severityLevel);
   bool get hasLocation => latitude != null && longitude != null;
 
+  // --- NUEVOS GETTERS DE PLANTA (Requiere plantaeDetails en constants.dart) ---
+  String get plantName => plantaeDetails[plantClass]?['nombre'] ?? plantClass ?? 'Desconocido';
+  String get plantBenefits => plantaeDetails[plantClass]?['beneficios'] ?? 'No disponible';
+  String get plantSeason => plantaeDetails[plantClass]?['temporada'] ?? 'No disponible';
+  String get plantVitamins => plantaeDetails[plantClass]?['vitaminas'] ?? 'No disponible';
+
   Map<String, dynamic> toMap() => {
     'id':            id,
     'diseaseClass':  diseaseClass,
+    'plantClass':    plantClass,
     'confidence':    confidence,
     'plantCategory': plantCategory,
     'description':   description,
@@ -61,6 +72,7 @@ class ScanResult {
   factory ScanResult.fromMap(Map<String, dynamic> map) => ScanResult(
     id:            map['id'] as String,
     diseaseClass:  map['diseaseClass'] as String,
+    plantClass:    map['plantClass'] as String?,
     confidence:    (map['confidence'] as num).toDouble(),
     plantCategory: map['plantCategory'] as String?,
     description:   map['description'] as String?,
@@ -78,6 +90,7 @@ class ScanResult {
   factory ScanResult.fromJson(Map<String, dynamic> json) => ScanResult(
     id:            json['id']?.toString() ?? '',
     diseaseClass:  json['disease_class']?.toString() ?? 'Unknown',
+    plantClass:    json['plant_class']?.toString(), 
     diseaseName:   json['diseaseName']?.toString(), 
     plantCategory: json['plantCategory']?.toString(), 
     description:   json['description']?.toString(),
@@ -94,6 +107,7 @@ class ScanResult {
 
   ScanResult copyWith({
     String? diseaseName,
+    String? plantClass,
     String? plantCategory,
     String? treatment,
     bool? isSynced,
@@ -102,6 +116,7 @@ class ScanResult {
   }) => ScanResult(
     id:            id,
     diseaseClass:  diseaseClass,
+    plantClass:    plantClass ?? this.plantClass,
     confidence:    confidence,
     plantCategory: plantCategory ?? this.plantCategory,
     description:   description,
