@@ -134,9 +134,10 @@ class HomeScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () {
-                // Al volver de la cámara, refresca el último registro
-                Get.toNamed(AgroRoutes.camera)?.then((_) => controller.onInit());
+              onPressed: () async {
+                await Get.toNamed(AgroRoutes.camera);
+                await Future.delayed(const Duration(milliseconds: 500)); // Da tiempo para que SQLite guarde
+                controller.loadLastScan();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AgroColors.greenLight,
@@ -313,20 +314,34 @@ class HomeScreen extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AgroColors.green,
         unselectedItemColor: AgroColors.textHint,
-        onTap: (i) {
+        onTap: (i) async {
           if (i == 1) Get.toNamed(AgroRoutes.map);
           if (i == 2) {
-             Get.toNamed(AgroRoutes.camera)?.then((_) => controller.onInit());
+             await Get.toNamed(AgroRoutes.camera);
+             await Future.delayed(const Duration(milliseconds: 500)); // Da tiempo para que SQLite guarde
+             controller.loadLastScan();
           }
           if (i == 3) Get.toNamed(AgroRoutes.history);
           if (i == 4) Get.toNamed(AgroRoutes.forum);
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Mapa'),
-          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'Scan'),
-          BottomNavigationBarItem(icon: Icon(Icons.history_outlined), label: 'Historial'),
-          BottomNavigationBarItem(icon: Icon(Icons.forum_outlined), label: 'Foro'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Inicio'),
+          const BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Mapa'),
+          BottomNavigationBarItem(
+            // Botón central estilo "Tomar"
+            icon: Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: AgroColors.green,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
+            ),
+            label: 'Tomar',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.history_outlined), label: 'Historial'),
+          const BottomNavigationBarItem(icon: Icon(Icons.forum_outlined), label: 'Foro'),
         ],
       ),
     );

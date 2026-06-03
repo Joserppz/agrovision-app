@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../services/weather_service.dart';
-import '../services/local_db_service.dart'; // Ajusta la ruta si tu archivo está en otra carpeta
+import '../services/local_db_service.dart';
 import '../core/constants.dart';
 
 class HomeController extends GetxController {
@@ -15,20 +15,21 @@ class HomeController extends GetxController {
   var locationName = 'Buscando...'.obs; 
   var tipOfTheDay = ''.obs;
 
-  // Lógica del último escaneo
+  // Lógica del último escaneo reactiva
   var hasLastScan = false.obs;
   var lastScanName = ''.obs;
   var lastScanTime = ''.obs;
   var lastScanConfidence = ''.obs;
 
+  // Frases limpias sin los días de la semana
   final List<String> _tips = [
-    'Lunes: El riego temprano reduce el riesgo de hongos foliares.',
-    'Martes: Asegura un buen drenaje para evitar la pudrición de raíces.',
-    'Miércoles: Rotar cultivos anualmente previene plagas persistentes.',
-    'Jueves: Limpia tus herramientas después de podar plantas enfermas.',
-    'Viernes: La ventilación adecuada disminuye la humedad retenida.',
-    'Sábado: Observa el envés de las hojas, ahí se esconden muchas plagas.',
-    'Domingo: Aplica fertilizantes lejos del tallo principal para evitar quemaduras.'
+    'El riego temprano reduce el riesgo de hongos foliares.',
+    'Asegura un buen drenaje para evitar la pudrición de raíces.',
+    'Rotar cultivos anualmente previene plagas persistentes.',
+    'Limpia tus herramientas después de podar plantas enfermas.',
+    'La ventilación adecuada disminuye la humedad retenida.',
+    'Observa el envés de las hojas, ahí se esconden muchas plagas.',
+    'Aplica fertilizantes lejos del tallo principal para evitar quemaduras.'
   ];
 
   @override
@@ -37,7 +38,7 @@ class HomeController extends GetxController {
     _setDynamicGreeting();
     _setTipOfTheDay();
     _loadRealLocationAndWeather();
-    _loadLastScan();
+    loadLastScan();
   }
 
   void _setDynamicGreeting() {
@@ -90,19 +91,19 @@ class HomeController extends GetxController {
     }
   }
 
-  Future<void> _loadLastScan() async {
+  Future<void> loadLastScan() async {
     try {
       final dbService = Get.find<LocalDbService>();
-      final scans = await dbService.getAllScans(limit: 1); // Traemos solo el último
+      final scans = await dbService.getAllScans(limit: 1); 
       
       if (scans.isNotEmpty) {
         final lastScan = scans.first;
-        hasLastScan.value = true;
         
-        // Usamos los getters que ya tienes definidos en tu ScanResult
         lastScanName.value = lastScan.displayName;
         lastScanConfidence.value = lastScan.confidencePercent;
         lastScanTime.value = _getTimeAgo(lastScan.timestamp);
+        
+        hasLastScan.value = true;
       } else {
         hasLastScan.value = false;
       }
