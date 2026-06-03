@@ -67,7 +67,7 @@ def analyze_plant_with_groq(image_path: str, yolo_disease: str = None, yolo_plan
                     ],
                 }
             ],
-            model="llama-3.2-11b-vision-preview",
+            model="llama-3.2-11b-vision-instruct",
             temperature=0.0, 
         )
         
