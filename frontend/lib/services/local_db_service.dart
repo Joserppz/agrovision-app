@@ -36,6 +36,7 @@ class LocalDbService extends GetxService {
       CREATE TABLE scans (
         id            TEXT PRIMARY KEY,
         diseaseClass  TEXT NOT NULL,
+        plantClass    TEXT,
         confidence    REAL NOT NULL,
         plantCategory TEXT,        -- NUEVO columna para la categoría (Fruta, Verdura...)
         description   TEXT,        
