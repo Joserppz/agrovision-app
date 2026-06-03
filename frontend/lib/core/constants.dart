@@ -37,7 +37,7 @@ class AgroConfig {
   AgroConfig._();
 
   // IP local de tu máquina (Activa para tus pruebas)
-  static const backendBaseUrl = 'http://192.168.1.204:8000'; 
+  static const backendBaseUrl = 'https://agrovision-app-ba39.onrender.com'; 
   
   // IPs del equipo (Comentadas para no perderlas en el repositorio)
   // static const backendBaseUrl = 'http://192.168.0.223:8000'; 
