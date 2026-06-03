@@ -73,7 +73,7 @@ class HomeScreen extends StatelessWidget {
           children: [
             Obx(() => Text(controller.greeting.value,
                 style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 14, color: AgroColors.textSecondary))),
-            const Text('Agricultor José',
+            const Text('Agricultor Visionario',
                 style: TextStyle(fontFamily: AgroText.fontDisplay, fontSize: 22, fontWeight: FontWeight.bold, color: AgroColors.textPrimary)),
             const SizedBox(height: 8),
             Container(
