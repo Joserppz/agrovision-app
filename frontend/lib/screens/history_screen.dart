@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../core/constants.dart';
 import '../controllers/history_controller.dart';
+import '../controllers/scan_controller.dart'; // IMPORTANTE: Importamos el controlador de escaneo
 import '../models/scan_result.dart';
 import '../widgets/offline_banner.dart';
 import '../controllers/connectivity_controller.dart';
@@ -196,7 +197,7 @@ class HistoryScreen extends StatelessWidget {
 }
 
 class _HistoryCard extends StatelessWidget {
-  final ScanResult       scan;
+  final ScanResult      scan;
   final HistoryController ctrl;
   const _HistoryCard({required this.scan, required this.ctrl});
 
@@ -218,101 +219,122 @@ class _HistoryCard extends StatelessWidget {
             color: AgroColors.red),
       ),
       onDismissed: (_) => ctrl.deleteScan(scan.id),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AgroColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AgroColors.border),
-        ),
-        child: Row(
-          children: [
-            // Icono de enfermedad
-            Container(
-              width: 50, height: 50,
-              decoration: BoxDecoration(
-                color: scan.severityColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                scan.severityLevel == 'healthy'
-                    ? Icons.check_circle_outline_rounded
-                    : Icons.warning_amber_rounded,
-                color: scan.severityColor,
-                size: 24,
-              ),
-            ),
-
-            const SizedBox(width: 14),
-
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      
+      // NUEVO: Envolvemos en GestureDetector para poder tocar el historial
+      child: GestureDetector(
+        onTap: () {
+          // Cargamos el controlador de escaneo (debe estar registrado en la app)
+          // Evitamos usar Get.put() porque ScanController requiere argumentos.
+          final scanCtrl = Get.find<ScanController>();
+              
+          // Le inyectamos el resultado histórico
+          scanCtrl.result.value = scan;
+          // Limpiamos la imagen temporal para que muestre el recuadro gris
+          scanCtrl.capturedImage.value = null; 
+          
+          // Navegamos al Result Screen
+          Get.toNamed(AgroRoutes.results);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AgroColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AgroColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(scan.displayName,
-                    style: TextStyle(
-                      fontFamily: AgroText.fontBody,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: scan.severityLevel == 'healthy'
-                          ? AgroColors.healthy
-                          : AgroColors.textPrimary,
-                    )),
-                  const SizedBox(height: 3),
-                  Text(fmt.format(scan.timestamp),
-                    style: const TextStyle(
-                      fontFamily: AgroText.fontBody,
-                      fontSize: 11,
-                      color: AgroColors.brown,
-                    )),
-                  if (scan.locationName != null) ...[
-                    const SizedBox(height: 2),
-                    Row(children: [
-                      const Icon(Icons.location_on_outlined,
-                          size: 11, color: AgroColors.brown),
-                      const SizedBox(width: 3),
-                      Expanded(
-                        child: Text(scan.locationName!,
-                          overflow: TextOverflow.ellipsis,
+                  // Icono de enfermedad
+                  Container(
+                    width: 50, height: 50,
+                    decoration: BoxDecoration(
+                      color: scan.severityColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      scan.severityLevel == 'healthy'
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.warning_amber_rounded,
+                      color: scan.severityColor,
+                      size: 24,
+                    ),
+                  ),
+
+                  const SizedBox(width: 14),
+
+                  // Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(scan.displayName,
+                          style: TextStyle(
+                            fontFamily: AgroText.fontBody,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: scan.severityLevel == 'healthy'
+                                ? AgroColors.healthy
+                                : AgroColors.textPrimary,
+                          )),
+                        const SizedBox(height: 3),
+                        Text(fmt.format(scan.timestamp),
                           style: const TextStyle(
                             fontFamily: AgroText.fontBody,
                             fontSize: 11,
                             color: AgroColors.brown,
                           )),
+                      ],
+                    ),
+                  ),
+
+                  // Confianza + flecha
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AgroColors.yellowLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(scan.confidencePercent,
+                          style: const TextStyle(
+                            fontFamily: AgroText.fontBody,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AgroColors.brown,
+                          )),
                       ),
-                    ]),
-                  ],
+                      const SizedBox(height: 8),
+                      if (!scan.isSynced)
+                        const Icon(Icons.cloud_off_outlined,
+                            size: 14, color: AgroColors.textHint),
+                    ],
+                  ),
                 ],
               ),
-            ),
-
-            // Confianza + flecha
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AgroColors.yellowLight,
-                    borderRadius: BorderRadius.circular(8),
+              
+              // NUEVO: Agregamos un pequeño extracto de la descripción si la IA lo detectó
+              if (scan.description != null && scan.description!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  scan.description!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: AgroText.fontBody,
+                    fontSize: 12,
+                    color: AgroColors.textPrimary.withOpacity(0.8),
+                    height: 1.3,
                   ),
-                  child: Text(scan.confidencePercent,
-                    style: const TextStyle(
-                      fontFamily: AgroText.fontBody,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AgroColors.brown,
-                    )),
                 ),
-                const SizedBox(height: 8),
-                if (!scan.isSynced)
-                  const Icon(Icons.cloud_off_outlined,
-                      size: 14, color: AgroColors.textHint),
               ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -10,7 +10,9 @@ import '../core/exceptions.dart';
 
 class LocalDbService extends GetxService {
   static const _dbName = 'agrovision.db';
-  static const _dbVersion = 1;
+  
+  // 1. CAMBIO CLAVE: Subimos la versión a 2 para obligar a SQLite a refrescarse
+  static const _dbVersion = 2; 
 
   Database? _db;
 
@@ -28,16 +30,20 @@ class LocalDbService extends GetxService {
       path,
       version: _dbVersion,
       onCreate: _createTables,
+      onUpgrade: _onUpgrade, // Agregamos el manejador de actualizaciones por seguridad
     );
   }
 
   Future<void> _createTables(Database db, int version) async {
-    // Tabla principal de escaneos
+    // Tabla principal de escaneos ACTUALIZADA para la IA
     await db.execute('''
       CREATE TABLE scans (
         id            TEXT PRIMARY KEY,
         diseaseClass  TEXT NOT NULL,
         confidence    REAL NOT NULL,
+        description   TEXT,        -- NUEVO columna para la IA
+        diseaseName   TEXT,        -- NUEVO columna para la IA
+        isPlant       INTEGER NOT NULL DEFAULT 1, -- NUEVO columna para la IA
         treatment     TEXT,
         latitude      REAL,
         longitude     REAL,
@@ -59,6 +65,15 @@ class LocalDbService extends GetxService {
         createdAt     TEXT NOT NULL
       )
     ''');
+  }
+
+  // Si la base de datos ya existía en el teléfono, este método destruye la vieja y monta la nueva
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('DROP TABLE IF EXISTS scans');
+      await db.execute('DROP TABLE IF EXISTS pending_scans');
+      await _createTables(db, newVersion);
+    }
   }
 
   // ─── Escaneos ─────────────────────────────────────────────────────────────

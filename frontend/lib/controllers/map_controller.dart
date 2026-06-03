@@ -15,6 +15,7 @@ class MapController extends GetxController {
   final isLoading       = false.obs;
   final selectedFilter  = 'all'.obs;
 
+  // Centro por defecto: La Paz, Bolivia
   static const defaultCenter = LatLng(-16.5000, -68.1500);
 
   @override
@@ -41,19 +42,15 @@ class MapController extends GetxController {
     }
   }
 
+  // CORRECCIÓN: Filtramos por el nivel de severidad en lugar de la clase exacta
   List<ScanResult> get filteredPoints {
     if (selectedFilter.value == 'all') return scanPoints;
     return scanPoints
-        .where((s) => s.diseaseClass == selectedFilter.value)
+        .where((s) => s.severityLevel == selectedFilter.value)
         .toList();
   }
 
   void setFilter(String filter) => selectedFilter.value = filter;
-
-  List<LatLng> get heatmapPoints => scanPoints
-      .where((s) => s.hasLocation && s.severityLevel != 'healthy')
-      .map((s) => LatLng(s.latitude!, s.longitude!))
-      .toList();
 
   LatLng get mapCenter => currentPosition.value ?? defaultCenter;
 }

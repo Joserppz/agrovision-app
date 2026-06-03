@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../core/constants.dart';
@@ -34,6 +35,29 @@ class ResultsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildDiseaseCard(result),
+                    
+                    if (result.description != null && result.description!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AgroColors.surface,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: AgroColors.border),
+                        ),
+                        child: Text(
+                          result.description!,
+                          style: const TextStyle(
+                            fontFamily: AgroText.fontBody,
+                            fontSize: 14,
+                            height: 1.45,
+                            color: AgroColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 12),
                     _buildTreatmentCard(result.treatment),
                     const SizedBox(height: 12),
@@ -57,16 +81,23 @@ class ResultsScreen extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Imagen real capturada
+          // LÓGICA ACTUALIZADA DE IMAGEN (Lee de caché o lee de la memoria permanente)
           ctrl.capturedImage.value != null
               ? Image.file(ctrl.capturedImage.value!, fit: BoxFit.cover)
-              : Container(color: AgroColors.green.withOpacity(0.3)),
+              : (ctrl.result.value?.imagePath != null)
+                  ? Image.file(File(ctrl.result.value!.imagePath!), fit: BoxFit.cover)
+                  : Container(
+                      color: AgroColors.green.withOpacity(0.3),
+                      child: const Center(
+                        child: Icon(Icons.history_rounded, size: 40, color: Colors.white54),
+                      ),
+                    ),
 
           // Overlay oscuro
           Container(color: Colors.black26),
 
           // Bounding box
-          if (ctrl.result.value != null)
+          if (ctrl.result.value != null && (ctrl.capturedImage.value != null || ctrl.result.value!.imagePath != null))
             Center(
               child: Container(
                 width: 140, height: 110,
@@ -177,7 +208,6 @@ class ResultsScreen extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // Barra de severidad
           const Text(
             'SEVERIDAD ESTIMADA',
             style: TextStyle(
@@ -203,15 +233,13 @@ class ResultsScreen extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // Tags del cultivo afectado
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
-              const _Tag(label: 'Tomate', color: AgroColors.green),
-              const _Tag(label: 'Papa',   color: AgroColors.green),
+              const _Tag(label: 'Vegetación', color: AgroColors.green),
               if (result.severityLevel == 'critical')
-                const _Tag(label: 'Alta Humedad', color: AgroColors.yellow),
+                const _Tag(label: 'Requiere Acción', color: AgroColors.yellow),
             ],
           ),
         ],
@@ -346,18 +374,24 @@ class ResultsScreen extends StatelessWidget {
   }
 
   Widget _buildActionRow(ScanController ctrl) {
+    bool isFromHistory = ctrl.capturedImage.value == null;
+
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {
-              Get.snackbar('✓ Guardado',
-                  'El resultado se guardó en tu historial',
-                  snackPosition: SnackPosition.BOTTOM);
+            onPressed: () async {
+              // LÓGICA DE GUARDADO CORREGIDA: Solo guarda si presionas el botón
+              if (!isFromHistory) {
+                await ctrl.saveCurrentScan();
+                Get.snackbar('✓ Guardado',
+                    'El resultado se guardó en tu historial',
+                    snackPosition: SnackPosition.BOTTOM);
+              }
               Get.offNamed(AgroRoutes.home);
             },
-            icon: const Icon(Icons.check_rounded, size: 18),
-            label: const Text('Guardar'),
+            icon: Icon(isFromHistory ? Icons.home_rounded : Icons.check_rounded, size: 18),
+            label: Text(isFromHistory ? 'Volver al Inicio' : 'Guardar'),
           ),
         ),
         const SizedBox(width: 10),
@@ -375,8 +409,6 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 }
-
-// ─── Sub-widgets ──────────────────────────────────────────────────────────────
 
 class _SeverityBadge extends StatelessWidget {
   final String level;

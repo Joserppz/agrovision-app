@@ -18,7 +18,6 @@ class CameraScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Obx(() {
-        // Validación reactiva: Si no está lista o el controlador es nulo, evita el renderizado nativo
         if (!ctrl.isCameraReady.value || ctrl.cameraController == null || !ctrl.cameraController!.value.isInitialized) {
           return const Center(
             child: CircularProgressIndicator(color: AgroColors.yellow),
@@ -28,33 +27,25 @@ class CameraScreen extends StatelessWidget {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // Preview de la cámara respetando el lente físico sin recortes ni zoom
             Container(
               width: double.infinity,
               height: double.infinity,
               color: Colors.black,
               child: Center(
                 child: AspectRatio(
-                  // Invertimos el ratio porque el celular está en modo vertical (Portrait)
                   aspectRatio: 1 / ctrl.cameraController!.value.aspectRatio,
                   child: CameraPreview(ctrl.cameraController!),
                 ),
               ),
             ),
-
-            // Overlay oscuro en los bordes
             _buildVignette(),
-
-            // Barra superior
             _buildTopBar(connectivity),
+            
+            // Selector de Modos de IA
+            _buildModeSelector(ctrl),
 
-            // Marco de enfoque con línea de escaneo
             _buildScanFrame(),
-
-            // Hint de usuario
             _buildHint(),
-
-            // Controles inferiores
             _buildBottomControls(ctrl),
           ],
         );
@@ -85,7 +76,6 @@ class CameraScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
-              // Botón volver
               GestureDetector(
                 onTap: () => Get.back(),
                 child: Container(
@@ -99,7 +89,6 @@ class CameraScreen extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              // Badge IA activa / offline
               Obx(() => Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -140,6 +129,28 @@ class CameraScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildModeSelector(ScanController ctrl) {
+    return Align(
+      alignment: const Alignment(0, -0.75),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ModeButton(title: 'YOLO', mode: AnalysisMode.yolo, ctrl: ctrl),
+            _ModeButton(title: 'GROQ', mode: AnalysisMode.groq, ctrl: ctrl),
+            _ModeButton(title: 'HÍBRIDO', mode: AnalysisMode.hybrid, ctrl: ctrl),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildScanFrame() {
     return Center(
       child: SizedBox(
@@ -147,9 +158,7 @@ class CameraScreen extends StatelessWidget {
         height: 240,
         child: Stack(
           children: [
-            // Esquinas del marco
             ..._corners(),
-            // Línea de escaneo animada
             _ScanLine(),
           ],
         ),
@@ -164,66 +173,10 @@ class CameraScreen extends StatelessWidget {
     const radius = 8.0;
 
     return [
-      // Top-left
-      Positioned(
-        top: 0, left: 0,
-        child: Container(
-          width: size, height: size,
-          decoration: const BoxDecoration(
-            border: Border(
-              top:  BorderSide(color: color, width: width),
-              left: BorderSide(color: color, width: width),
-            ),
-            borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(radius)),
-          ),
-        ),
-      ),
-      // Top-right
-      Positioned(
-        top: 0, right: 0,
-        child: Container(
-          width: size, height: size,
-          decoration: const BoxDecoration(
-            border: Border(
-              top:   BorderSide(color: color, width: width),
-              right: BorderSide(color: color, width: width),
-            ),
-            borderRadius: BorderRadius.only(
-                topRight: Radius.circular(radius)),
-          ),
-        ),
-      ),
-      // Bottom-left
-      Positioned(
-        bottom: 0, left: 0,
-        child: Container(
-          width: size, height: size,
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: color, width: width),
-              left:   BorderSide(color: color, width: width),
-            ),
-            borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(radius)),
-          ),
-        ),
-      ),
-      // Bottom-right
-      Positioned(
-        bottom: 0, right: 0,
-        child: Container(
-          width: size, height: size,
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: color, width: width),
-              right:  BorderSide(color: color, width: width),
-            ),
-            borderRadius: BorderRadius.only(
-                bottomRight: Radius.circular(radius)),
-          ),
-        ),
-      ),
+      Positioned(top: 0, left: 0, child: Container(width: size, height: size, decoration: const BoxDecoration(border: Border(top: BorderSide(color: color, width: width), left: BorderSide(color: color, width: width)), borderRadius: BorderRadius.only(topLeft: Radius.circular(radius))))),
+      Positioned(top: 0, right: 0, child: Container(width: size, height: size, decoration: const BoxDecoration(border: Border(top: BorderSide(color: color, width: width), right: BorderSide(color: color, width: width)), borderRadius: BorderRadius.only(topRight: Radius.circular(radius))))),
+      Positioned(bottom: 0, left: 0, child: Container(width: size, height: size, decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: color, width: width), left: BorderSide(color: color, width: width)), borderRadius: BorderRadius.only(bottomLeft: Radius.circular(radius))))),
+      Positioned(bottom: 0, right: 0, child: Container(width: size, height: size, decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: color, width: width), right: BorderSide(color: color, width: width)), borderRadius: BorderRadius.only(bottomRight: Radius.circular(radius))))),
     ];
   }
 
@@ -231,8 +184,7 @@ class CameraScreen extends StatelessWidget {
     return Align(
       alignment: const Alignment(0, 0.35),
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.black45,
           borderRadius: BorderRadius.circular(12),
@@ -264,7 +216,6 @@ class CameraScreen extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Galería
             _IconButton(
               icon: Icons.photo_library_outlined,
               onTap: () async {
@@ -277,8 +228,6 @@ class CameraScreen extends StatelessWidget {
                 }
               },
             ),
-
-            // Disparador principal
             Obx(() => GestureDetector(
               onTap: ctrl.state.value == ScanState.capturing ||
                       ctrl.state.value == ScanState.analyzing
@@ -309,8 +258,6 @@ class CameraScreen extends StatelessWidget {
                       ),
               ),
             )),
-
-            // Cambiar cámara
             _IconButton(
               icon: Icons.flip_camera_ios_outlined,
               onTap: () async {
@@ -324,7 +271,41 @@ class CameraScreen extends StatelessWidget {
   }
 }
 
-// ─── Línea de escaneo animada ─────────────────────────────────────────────────
+// ─── Componentes Adicionales ──────────────────────────────────────────────────
+
+class _ModeButton extends StatelessWidget {
+  final String title;
+  final AnalysisMode mode;
+  final ScanController ctrl;
+
+  const _ModeButton({required this.title, required this.mode, required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final isSelected = ctrl.selectedMode.value == mode;
+      return GestureDetector(
+        onTap: () => ctrl.setMode(mode),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? AgroColors.green : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontFamily: AgroText.fontBody,
+              color: isSelected ? Colors.white : Colors.white70,
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
 
 class _ScanLine extends StatefulWidget {
   @override
@@ -379,8 +360,6 @@ class _ScanLineState extends State<_ScanLine>
     super.dispose();
   }
 }
-
-// ─── Botón icono circular ─────────────────────────────────────────────────────
 
 class _IconButton extends StatelessWidget {
   final IconData icon;

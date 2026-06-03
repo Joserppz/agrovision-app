@@ -23,7 +23,6 @@ app.add_middleware(
 )
 
 # 3. Cargar modelo YOLO (El código del equipo)
-# Wrap en try-except por si no tienes el archivo best.pt descargado localmente
 try:
     model = YOLO(str(BASE_DIR / "models_jet" / "best.pt"))
     print("✅ Modelo YOLO cargado correctamente.")
@@ -34,8 +33,9 @@ except Exception as e:
 # Carpetas temporales
 UPLOAD_FOLDER = BASE_DIR / "temp"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-temp_dir_gemini = BASE_DIR / "temp_scans"
-os.makedirs(temp_dir_gemini, exist_ok=True)
+
+temp_dir_groq = BASE_DIR / "temp_scans"
+os.makedirs(temp_dir_groq, exist_ok=True)
 
 
 # --- ENDPOINTS ---
@@ -46,7 +46,7 @@ def health_check():
     return {"status": "AgroVision backend activo ✅", "message": "API funcionando 🚀"}
 
 
-# Endpoint 1: Predicción con YOLO (Código del equipo)
+# Endpoint 1: Predicción con YOLO
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     if model is None:
@@ -61,12 +61,26 @@ async def predict(file: UploadFile = File(...)):
     results = model(file_path)
     detections = []
 
+    # Diccionario oficial extraído de Roboflow
+    YOLO_CLASSES = {
+        0: "Mancha Bacteriana (Bacterial Spot)",
+        1: "Tizón Temprano (Early Blight)",
+        2: "Sano (Healthy)",
+        3: "Tizón Tardío (Late Blight)",
+        4: "Moho de la Hoja (Leaf Mold)",
+        5: "Mancha Foliar por Septoria (Septoria Leaf Spot)",
+        6: "Mancha Blanca (Target Spot)",
+        7: "Virus del Mosaico (Tomato Mosaic Virus)",
+        8: "Araña Roja (Two Spotted Spider Mite)"
+    }
+
     for result in results:
         boxes = result.boxes
         for box in boxes:
             class_id = int(box.cls[0])
             confidence = float(box.conf[0])
-            disease_name = model.names[class_id]
+            
+            disease_name = YOLO_CLASSES.get(class_id, "Desconocido")
 
             detections.append({
                 "disease": disease_name,
@@ -82,7 +96,7 @@ async def predict(file: UploadFile = File(...)):
     return {"success": True, "detections": detections}
 
 
-# Endpoint 2: Análisis con Gemini (Tu código protegido)
+# Endpoint 2: Análisis con Groq
 @app.post("/analyze")
 async def analyze_image(
     image: UploadFile = File(...),
@@ -90,17 +104,19 @@ async def analyze_image(
     longitude: Optional[float] = Form(None),
     location_name: Optional[str] = Form(None),
     scan_id: Optional[str] = Form(None),
+    yolo_disease: Optional[str] = Form(None), # <-- NUEVO: Recibe el diagnóstico de YOLO
 ):
     temp_file_path = None
     try:
         temp_file_path = os.path.join(
-            temp_dir_gemini, f"{scan_id or int(time.time())}_{image.filename}"
+            temp_dir_groq, f"{scan_id or int(time.time())}_{image.filename}"
         )
 
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
 
-        ia_result = analyze_plant_with_groq(temp_file_path)
+        # Pasamos yolo_disease a Groq para que evalúe si el modelo matemático tuvo razón
+        ia_result = analyze_plant_with_groq(temp_file_path, yolo_disease)
 
         return {
             "id":            scan_id or f"scan_{int(time.time())}",

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import '../core/constants.dart';
+import 'package:flutter/material.dart';
 import '../models/scan_result.dart';
 import 'confidence_badge.dart';
 
@@ -24,11 +24,13 @@ class ScanResultCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Nombre común (IA o Constantes)
                       Text(
                         result.displayName,
                         style: const TextStyle(
@@ -39,6 +41,7 @@ class ScanResultCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
+                      // Nombre científico
                       Text(
                         result.scientificName,
                         style: const TextStyle(
@@ -61,6 +64,22 @@ class ScanResultCard extends StatelessWidget {
                 ),
               ],
             ),
+            
+            // NUEVO: Mostrar un extracto de la descripción detallada si existe
+            if (result.description != null && result.description!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                result.description!,
+                style: const TextStyle(
+                  fontFamily: AgroText.fontBody,
+                  fontSize: 12,
+                  color: AgroColors.textPrimary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+
             if (result.hasLocation) ...[
               const SizedBox(height: 10),
               Row(
@@ -71,8 +90,7 @@ class ScanResultCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       result.locationName ??
-                          '${result.latitude!.toStringAsFixed(4)}°, '
-                          '${result.longitude!.toStringAsFixed(4)}°',
+                          'Lat: ${result.latitude!.toStringAsFixed(4)}°, Lon: ${result.longitude!.toStringAsFixed(4)}°',
                       style: const TextStyle(
                         fontFamily: AgroText.fontBody,
                         fontSize: 11,
