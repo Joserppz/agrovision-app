@@ -122,6 +122,8 @@ class ScanController extends Notifier<ScanStateData> {
 
   void setMode(AnalysisMode mode) => state = state.copyWith(selectedMode: mode);
   void reset() => state = const ScanStateData();
+
+  saveCurrentScan({required String customName, required String category}) {}
 }
 
 final scanControllerProvider = NotifierProvider<ScanController, ScanStateData>(ScanController.new);

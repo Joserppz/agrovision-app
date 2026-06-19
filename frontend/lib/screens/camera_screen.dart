@@ -217,7 +217,7 @@ class CameraScreen extends ConsumerWidget {
             ),
             _IconButton(
               icon: Icons.flip_camera_ios_outlined,
-              onTap: () async { await ctrl.toggleCamera(); },
+              onTap: () { ctrl.toggleCamera(); },
             ),
           ],
         ),

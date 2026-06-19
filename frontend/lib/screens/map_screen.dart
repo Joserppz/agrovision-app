@@ -204,7 +204,7 @@ class MapScreen extends ConsumerWidget {
                   onPressed: () {
                     Navigator.pop(context);
                     final scanCtrl = ref.read(scanControllerProvider.notifier);
-                    scanCtrl.state = scanCtrl.state.copyWith(result: scan, capturedImage: null);
+                    scanCtrl.setResultForViewing(scan);
                     context.push(AgroRoutes.results);
                   },
                   icon: const Icon(Icons.open_in_full_rounded, size: 16), label: const Text('Ver registro completo'),

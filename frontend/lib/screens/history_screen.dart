@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../core/constants.dart';
 import '../controllers/history_controller.dart';
 import '../controllers/scan_controller.dart'; 
+import '../controllers/connectivity_controller.dart'; 
 import '../models/scan_result.dart';
 // import '../widgets/offline_banner.dart'; // Comentado temporalmente
 
@@ -23,7 +23,8 @@ class HistoryScreen extends HookConsumerWidget {
     final state = ref.watch(historyControllerProvider);
     final ctrl = ref.read(historyControllerProvider.notifier);
     
-    final bool isOnline = true; // Simulación hasta migrar conectividad
+    // Leemos el estado real de conexión
+    final bool isOnline = ref.watch(connectivityProvider).isOnline;
 
     return Scaffold(
       backgroundColor: AgroColors.cream,
@@ -246,7 +247,7 @@ class _HistoryCard extends ConsumerWidget {
         onTap: () {
           // Cargamos el resultado en el controlador de la cámara y navegamos
           final scanCtrl = ref.read(scanControllerProvider.notifier);
-          scanCtrl.state = scanCtrl.state.copyWith(result: scan, capturedImage: null);
+          scanCtrl.setResultForViewing(scan);
           context.push(AgroRoutes.results);
         },
         child: Container(

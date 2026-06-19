@@ -35,8 +35,8 @@ class TimeoutException extends AgroException {
       : super('El servidor tardó demasiado en responder. Intenta de nuevo.');
 }
 
-class CameraException extends AgroException {
-  const CameraException(super.message);
+class AgroCameraException extends AgroException {
+  const AgroCameraException(super.message);
 }
 
 class LocalDbException extends AgroException {

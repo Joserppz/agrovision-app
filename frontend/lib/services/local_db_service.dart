@@ -5,11 +5,10 @@ import 'package:sqflite/sqflite.dart';
 import '../models/scan_result.dart';
 import '../core/exceptions.dart';
 
-// FutureProvider — inicializa la DB antes de exponerla
-final localDbProvider = FutureProvider<LocalDbService>((ref) async {
-  final db = LocalDbService();
-  await db.init();
-  return db;
+// Provider sencillo — devuelve la instancia directamente.
+// La inicialización se hace lazy con init() en cada uso.
+final localDbProvider = Provider<LocalDbService>((ref) {
+  return LocalDbService();
 });
 
 class LocalDbService {

@@ -4,7 +4,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../services/weather_service.dart';
 import '../services/local_db_service.dart';
-import '../core/constants.dart';
 
 // 1. EL ESTADO INMUTABLE
 class HomeState {
@@ -103,7 +102,9 @@ class HomeController extends Notifier<HomeState> {
         }
       }
 
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      );
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
       
       String locName = 'Ubicación local';

@@ -2,10 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/scan_result.dart';
 import '../services/local_db_service.dart';
-import '../services/location_service.dart';
-
-// Creamos un provider sencillo para el servicio de ubicación
-final locationServiceProvider = Provider((ref) => LocationService());
+import '../controllers/scan_controller.dart'; // locationServiceProvider
 
 // 1. ESTADO INMUTABLE
 class MapState {
