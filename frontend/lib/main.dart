@@ -1,58 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'core/constants.dart';
 import 'core/routes.dart';
-import 'core/bindings.dart';
 import 'core/theme.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_BO');
 
-  // Orientación solo vertical
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
 
-  // Barra de estado transparente
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor:      Colors.transparent,
+    statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
 
-  // Supabase — solo si las keys están configuradas
   if (AgroConfig.supabaseUrl != 'TU_SUPABASE_URL') {
     await Supabase.initialize(
-      url:    AgroConfig.supabaseUrl,
+      url: AgroConfig.supabaseUrl,
       anonKey: AgroConfig.supabaseAnonKey,
     );
   }
 
-  runApp(const AgroVisionApp());
+  // EL CAMBIO ESTRELLA: ProviderScope envuelve la App
+  runApp(const ProviderScope(child: AgroVisionApp()));
 }
 
-class AgroVisionApp extends StatelessWidget {
+// Convertimos a ConsumerWidget para poder leer los Providers
+class AgroVisionApp extends ConsumerWidget {
   const AgroVisionApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return GetMaterialApp(
-      title:           'AgroVision',
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Leemos el enrutador que creamos en el paso anterior
+    final goRouter = ref.watch(routerProvider);
+
+    return MaterialApp.router(
+      title: 'AgroVision',
       debugShowCheckedModeBanner: false,
-      theme:           AgroTheme.light,
-      initialRoute:    AgroRoutes.home,
-      initialBinding: InitialBinding(),
-      getPages:        AgroPages.pages,
+      theme: AgroTheme.light,
+      
+      routerConfig: goRouter,
 
-      // Traducciones de GetX (español por defecto)
-      locale:          const Locale('es', 'BO'),
-      fallbackLocale:  const Locale('es', 'ES'),
-
-      // Snackbar global con estilo AgroVision
-      defaultTransition: Transition.fadeIn,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'BO'),
+        Locale('es', 'ES'),
+      ],
     );
   }
 }

@@ -1,27 +1,58 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../services/weather_service.dart';
 import '../services/local_db_service.dart';
 import '../core/constants.dart';
 
-class HomeController extends GetxController {
+// 1. EL ESTADO INMUTABLE
+class HomeState {
+  final String greeting;
+  final String temperature;
+  final String humidity;
+  final String locationName;
+  final String tipOfTheDay;
+  final bool hasLastScan;
+  final String lastScanName;
+  final String lastScanTime;
+  final String lastScanConfidence;
+
+  HomeState({
+    this.greeting = 'Buenos días',
+    this.temperature = '--',
+    this.humidity = '--',
+    this.locationName = 'Buscando...',
+    this.tipOfTheDay = '',
+    this.hasLastScan = false,
+    this.lastScanName = '',
+    this.lastScanTime = '',
+    this.lastScanConfidence = '',
+  });
+
+  HomeState copyWith({
+    String? greeting, String? temperature, String? humidity,
+    String? locationName, String? tipOfTheDay, bool? hasLastScan,
+    String? lastScanName, String? lastScanTime, String? lastScanConfidence,
+  }) {
+    return HomeState(
+      greeting: greeting ?? this.greeting,
+      temperature: temperature ?? this.temperature,
+      humidity: humidity ?? this.humidity,
+      locationName: locationName ?? this.locationName,
+      tipOfTheDay: tipOfTheDay ?? this.tipOfTheDay,
+      hasLastScan: hasLastScan ?? this.hasLastScan,
+      lastScanName: lastScanName ?? this.lastScanName,
+      lastScanTime: lastScanTime ?? this.lastScanTime,
+      lastScanConfidence: lastScanConfidence ?? this.lastScanConfidence,
+    );
+  }
+}
+
+// 2. EL NOTIFIER (Lógica de Negocio)
+class HomeController extends Notifier<HomeState> {
   final WeatherService _weatherService = WeatherService();
 
-  var greeting = 'Buenos días'.obs;
-  var temperature = '--'.obs;
-  var humidity = '--'.obs;
-  var locationName = 'Buscando...'.obs; 
-  var tipOfTheDay = ''.obs;
-
-  // Lógica del último escaneo reactiva
-  var hasLastScan = false.obs;
-  var lastScanName = ''.obs;
-  var lastScanTime = ''.obs;
-  var lastScanConfidence = ''.obs;
-
-  // Frases limpias sin los días de la semana
   final List<String> _tips = [
     'El riego temprano reduce el riesgo de hongos foliares.',
     'Asegura un buen drenaje para evitar la pudrición de raíces.',
@@ -33,35 +64,33 @@ class HomeController extends GetxController {
   ];
 
   @override
-  void onInit() {
-    super.onInit();
-    _setDynamicGreeting();
-    _setTipOfTheDay();
-    _loadRealLocationAndWeather();
-    loadLastScan();
+  HomeState build() {
+    // Inicialización asíncrona segura
+    Future.microtask(() {
+      _setDynamicGreeting();
+      _setTipOfTheDay();
+      _loadRealLocationAndWeather();
+      loadLastScan();
+    });
+    return HomeState();
   }
 
   void _setDynamicGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) {
-      greeting.value = 'Buenos días,';
-    } else if (hour < 19) {
-      greeting.value = 'Buenas tardes,';
-    } else {
-      greeting.value = 'Buenas noches,';
-    }
+    String newGreeting = hour < 12 ? 'Buenos días,' : (hour < 19 ? 'Buenas tardes,' : 'Buenas noches,');
+    state = state.copyWith(greeting: newGreeting);
   }
 
   void _setTipOfTheDay() {
     final index = DateTime.now().weekday - 1;
-    tipOfTheDay.value = _tips[index];
+    state = state.copyWith(tipOfTheDay: _tips[index]);
   }
 
   Future<void> _loadRealLocationAndWeather() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        locationName.value = 'GPS apagado';
+        state = state.copyWith(locationName: 'GPS apagado');
         return;
       }
 
@@ -69,46 +98,53 @@ class HomeController extends GetxController {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          locationName.value = 'Sin permiso';
+          state = state.copyWith(locationName: 'Sin permiso');
           return;
         }
       }
 
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
-      
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      
+      String locName = 'Ubicación local';
       if (placemarks.isNotEmpty) {
-        locationName.value = placemarks.first.locality ?? placemarks.first.subAdministrativeArea ?? 'Ubicación local';
+        locName = placemarks.first.locality ?? placemarks.first.subAdministrativeArea ?? locName;
       }
 
       final data = await _weatherService.getCurrentWeather(position.latitude, position.longitude);
       if (data != null && data['current'] != null) {
-        temperature.value = '${data['current']['temperature_2m'].round()}°C';
-        humidity.value = '${data['current']['relative_humidity_2m'].round()}%';
+        state = state.copyWith(
+          locationName: locName,
+          temperature: '${data['current']['temperature_2m'].round()}°C',
+          humidity: '${data['current']['relative_humidity_2m'].round()}%',
+        );
+      } else {
+        state = state.copyWith(locationName: locName);
       }
     } catch (e) {
-      locationName.value = 'Sin conexión';
+      state = state.copyWith(locationName: 'Sin conexión');
     }
   }
 
   Future<void> loadLastScan() async {
     try {
-      final dbService = Get.find<LocalDbService>();
+      final dbService = ref.read(localDbProvider);
+      await dbService.init(); 
       final scans = await dbService.getAllScans(limit: 1); 
       
       if (scans.isNotEmpty) {
         final lastScan = scans.first;
-        
-        lastScanName.value = lastScan.displayName;
-        lastScanConfidence.value = lastScan.confidencePercent;
-        lastScanTime.value = _getTimeAgo(lastScan.timestamp);
-        
-        hasLastScan.value = true;
+        state = state.copyWith(
+          hasLastScan: true,
+          lastScanName: lastScan.displayName,
+          lastScanConfidence: lastScan.confidencePercent,
+          lastScanTime: _getTimeAgo(lastScan.timestamp),
+        );
       } else {
-        hasLastScan.value = false;
+        state = state.copyWith(hasLastScan: false);
       }
     } catch (e) {
-      hasLastScan.value = false;
+      state = state.copyWith(hasLastScan: false);
       debugPrint("Error al cargar el último escaneo desde BD: $e");
     }
   }
@@ -120,48 +156,9 @@ class HomeController extends GetxController {
     if (duration.inHours < 24) return 'hace ${duration.inHours} h';
     return 'hace ${duration.inDays} d';
   }
-
-  void showComingSoonDialog() {
-    Get.defaultDialog(
-      title: 'Próximamente',
-      middleText: 'El módulo de perfil y foro comunitario estará disponible en la próxima actualización.',
-      textConfirm: 'Entendido',
-      confirmTextColor: Colors.white,
-      buttonColor: AgroColors.green,
-      onConfirm: () => Get.back(),
-    );
-  }
-
-  void showAllDiseasesDialog() {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: AgroColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            const Text('Todas las enfermedades', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AgroColors.textPrimary)),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView(
-                children: const [
-                  ListTile(title: Text('Mancha Bacteriana'), subtitle: Text('Bacterial Spot')),
-                  ListTile(title: Text('Tizón Temprano'), subtitle: Text('Early Blight')),
-                  ListTile(title: Text('Sano'), subtitle: Text('Healthy')),
-                  ListTile(title: Text('Tizón Tardío'), subtitle: Text('Late Blight')),
-                  ListTile(title: Text('Moho de la Hoja'), subtitle: Text('Leaf Mold')),
-                  ListTile(title: Text('Mancha Foliar por Septoria'), subtitle: Text('Septoria Leaf Spot')),
-                  ListTile(title: Text('Mancha Blanca'), subtitle: Text('Target Spot')),
-                  ListTile(title: Text('Virus del Mosaico'), subtitle: Text('Tomato Mosaic Virus')),
-                  ListTile(title: Text('Araña Roja'), subtitle: Text('Two Spotted Spider Mite')),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
+
+// 3. EXPORTAMOS EL CONTROLADOR
+final homeControllerProvider = NotifierProvider<HomeController, HomeState>(() {
+  return HomeController();
+});

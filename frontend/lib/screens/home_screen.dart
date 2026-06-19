@@ -1,57 +1,55 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
-import '../controllers/connectivity_controller.dart';
 import '../controllers/home_controller.dart';
-import '../widgets/offline_banner.dart';
+// import '../widgets/offline_banner.dart'; // Mantén comentado hasta que migremos connectivity_controller
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final controller = Get.put(HomeController());
-    final connectivity = Get.find<ConnectivityController>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 1. Escuchar el estado reactivo
+    final state = ref.watch(homeControllerProvider);
+    // 2. Acceder a los métodos
+    final controller = ref.read(homeControllerProvider.notifier);
 
     return Scaffold(
       backgroundColor: AgroColors.cream,
       body: SafeArea(
         child: Column(
           children: [
-            Obx(() => connectivity.isOnline.value
-                ? const SizedBox.shrink()
-                : const OfflineBanner()),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildTopHeader(controller),
+                    _buildTopHeader(state, context),
                     const SizedBox(height: 24),
-                    _buildMainCard(controller),
+                    _buildMainCard(context, controller),
                     const SizedBox(height: 32),
-                    _buildSectionTitle('Enfermedades detectables', 'Ver todas', controller.showAllDiseasesDialog),
+                    _buildSectionTitle('Enfermedades detectables', 'Ver todas', () {
+                      _showAllDiseasesDialog(context);
+                    }),
                     const SizedBox(height: 16),
                     _buildHorizontalDiseaseList(),
                     
                     const SizedBox(height: 32),
-                    _buildSectionTitle('Último escaneo', 'Ver historial', () => Get.toNamed(AgroRoutes.history)),
+                    _buildSectionTitle('Último escaneo', 'Ver historial', () => context.push(AgroRoutes.history)),
                     const SizedBox(height: 16),
                     
-                    // Renderizado condicional reactivo
-                    Obx(() {
-                      if (!controller.hasLastScan.value) {
-                        return _buildEmptyScanCard();
-                      }
-                      return _buildLastScan(controller);
-                    }),
+                    if (!state.hasLastScan) 
+                      _buildEmptyScanCard()
+                    else 
+                      _buildLastScan(state),
                     
                     const SizedBox(height: 32),
                     const Text('Consejo del día', 
                         style: TextStyle(fontFamily: AgroText.fontBody, fontSize: 16, fontWeight: FontWeight.bold, color: AgroColors.textPrimary)),
                     const SizedBox(height: 16),
-                    _buildTipCard(controller),
+                    _buildTipCard(state),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -60,20 +58,20 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(controller),
+      bottomNavigationBar: _buildBottomNav(context, controller),
     );
   }
 
-  Widget _buildTopHeader(HomeController controller) {
+  Widget _buildTopHeader(HomeState state, BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Obx(() => Text(controller.greeting.value,
-                style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 14, color: AgroColors.textSecondary))),
-            const Text('Agricultor Visionario',
+            Text(state.greeting,
+                style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 14, color: AgroColors.textSecondary)),
+            const Text('Agricultor José',
                 style: TextStyle(fontFamily: AgroText.fontDisplay, fontSize: 22, fontWeight: FontWeight.bold, color: AgroColors.textPrimary)),
             const SizedBox(height: 8),
             Container(
@@ -86,16 +84,16 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const Icon(Icons.wb_sunny_outlined, size: 14, color: AgroColors.orange),
                   const SizedBox(width: 6),
-                  Obx(() => Text(
-                      '${controller.temperature.value} · ${controller.locationName.value} · Humedad ${controller.humidity.value}',
-                      style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 12, color: AgroColors.textSecondary, fontWeight: FontWeight.w500))),
+                  Text(
+                      '${state.temperature} · ${state.locationName} · Humedad ${state.humidity}',
+                      style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 12, color: AgroColors.textSecondary, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
           ],
         ),
         GestureDetector(
-          onTap: controller.showComingSoonDialog,
+          onTap: () => _showComingSoonDialog(context),
           child: const CircleAvatar(
             radius: 24,
             backgroundColor: AgroColors.greenFaint,
@@ -106,7 +104,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMainCard(HomeController controller) {
+  Widget _buildMainCard(BuildContext context, HomeController controller) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -135,8 +133,8 @@ class HomeScreen extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () async {
-                await Get.toNamed(AgroRoutes.camera);
-                await Future.delayed(const Duration(milliseconds: 500)); // Da tiempo para que SQLite guarde
+                await context.push(AgroRoutes.camera);
+                await Future.delayed(const Duration(milliseconds: 500));
                 controller.loadLastScan();
               },
               style: ElevatedButton.styleFrom(
@@ -237,7 +235,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLastScan(HomeController controller) {
+  Widget _buildLastScan(HomeState state) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -257,26 +255,26 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Obx(() => Text(controller.lastScanName.value, 
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AgroColors.textPrimary))),
+                Text(state.lastScanName, 
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AgroColors.textPrimary)),
                 const SizedBox(height: 4),
-                Obx(() => Text('${controller.locationName.value} · ${controller.lastScanTime.value}', 
-                  style: const TextStyle(fontSize: 12, color: AgroColors.textHint))),
+                Text('${state.locationName} · ${state.lastScanTime}', 
+                  style: const TextStyle(fontSize: 12, color: AgroColors.textHint)),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(color: AgroColors.yellowLight, borderRadius: BorderRadius.circular(12)),
-            child: Obx(() => Text(controller.lastScanConfidence.value, 
-              style: const TextStyle(color: AgroColors.orange, fontWeight: FontWeight.bold, fontSize: 12))),
+            child: Text(state.lastScanConfidence, 
+              style: const TextStyle(color: AgroColors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTipCard(HomeController controller) {
+  Widget _buildTipCard(HomeState state) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -293,8 +291,8 @@ class HomeScreen extends StatelessWidget {
               children: [
                 const Text('AGRONOMÍA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AgroColors.green, letterSpacing: 1.2)),
                 const SizedBox(height: 4),
-                Obx(() => Text(controller.tipOfTheDay.value, 
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AgroColors.textPrimary, height: 1.4))),
+                Text(state.tipOfTheDay, 
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AgroColors.textPrimary, height: 1.4)),
               ],
             ),
           ),
@@ -303,7 +301,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomNav(HomeController controller) {
+  Widget _buildBottomNav(BuildContext context, HomeController controller) {
     return Container(
       decoration: const BoxDecoration(
         color: AgroColors.surface,
@@ -315,20 +313,19 @@ class HomeScreen extends StatelessWidget {
         selectedItemColor: AgroColors.green,
         unselectedItemColor: AgroColors.textHint,
         onTap: (i) async {
-          if (i == 1) Get.toNamed(AgroRoutes.map);
+          if (i == 1) context.push(AgroRoutes.map);
           if (i == 2) {
-             await Get.toNamed(AgroRoutes.camera);
-             await Future.delayed(const Duration(milliseconds: 500)); // Da tiempo para que SQLite guarde
+             await context.push(AgroRoutes.camera);
+             await Future.delayed(const Duration(milliseconds: 500)); 
              controller.loadLastScan();
           }
-          if (i == 3) Get.toNamed(AgroRoutes.history);
-          if (i == 4) Get.toNamed(AgroRoutes.forum);
+          if (i == 3) context.push(AgroRoutes.history);
+          if (i == 4) context.push(AgroRoutes.forum);
         },
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Inicio'),
           const BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Mapa'),
           BottomNavigationBarItem(
-            // Botón central estilo "Tomar"
             icon: Container(
               margin: const EdgeInsets.only(bottom: 4),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -343,6 +340,58 @@ class HomeScreen extends StatelessWidget {
           const BottomNavigationBarItem(icon: Icon(Icons.history_outlined), label: 'Historial'),
           const BottomNavigationBarItem(icon: Icon(Icons.forum_outlined), label: 'Foro'),
         ],
+      ),
+    );
+  }
+
+  void _showComingSoonDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Próximamente'),
+        content: const Text('El módulo de perfil y foro comunitario estará disponible en la próxima actualización.'),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AgroColors.green),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAllDiseasesDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: AgroColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            const Text('Todas las enfermedades', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AgroColors.textPrimary)),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                children: const [
+                  ListTile(title: Text('Mancha Bacteriana'), subtitle: Text('Bacterial Spot')),
+                  ListTile(title: Text('Tizón Temprano'), subtitle: Text('Early Blight')),
+                  ListTile(title: Text('Sano'), subtitle: Text('Healthy')),
+                  ListTile(title: Text('Tizón Tardío'), subtitle: Text('Late Blight')),
+                  ListTile(title: Text('Moho de la Hoja'), subtitle: Text('Leaf Mold')),
+                  ListTile(title: Text('Mancha Foliar por Septoria'), subtitle: Text('Septoria Leaf Spot')),
+                  ListTile(title: Text('Mancha Blanca'), subtitle: Text('Target Spot')),
+                  ListTile(title: Text('Virus del Mosaico'), subtitle: Text('Tomato Mosaic Virus')),
+                  ListTile(title: Text('Araña Roja'), subtitle: Text('Two Spotted Spider Mite')),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

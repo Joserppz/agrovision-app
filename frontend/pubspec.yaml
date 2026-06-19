@@ -10,46 +10,48 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # ── State Management (Riverpod) ──────────────────────────────
-  flutter_riverpod: ^2.5.0
-  riverpod_annotation: ^2.3.0
+  # ── Arquitectura Limpia (Reemplazo de GetX) ───────────
+  flutter_riverpod: ^2.5.1
+  hooks_riverpod: ^2.5.1
+  flutter_hooks: ^0.3.0
+  go_router: ^13.2.0
 
-  # ── HTTP ──────────────────────────────────────────────────
+  # ── HTTP ──────────────────────────────────────────────
   dio: ^5.4.0
 
-  # ── Base de datos local ───────────────────────────────────
+  # ── Base de datos local ───────────────────────────────
   sqflite: ^2.3.2
   path_provider: ^2.1.2
   path: ^1.9.0
 
-  # ── Supabase (auth + realtime foro) ───────────────────────
+  # ── Supabase (auth + realtime foro) ───────────────────
   supabase_flutter: ^2.3.4
 
-  # ── Cámara y galería ──────────────────────────────────────
+  # ── Cámara y galería ──────────────────────────────────
   camera: ^0.10.5+9
   image_picker: ^1.0.7
 
-  # ── Mapas (sin API key, OpenStreetMap) ────────────────────
+  # ── Mapas (sin API key, OpenStreetMap) ────────────────
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   flutter_map_location_marker: ^9.1.1
 
-  # ── GPS / ubicación ───────────────────────────────────────
+  # ── GPS / ubicación ───────────────────────────────────
   geocoding: ^4.0.0
 
-  # ── Conectividad online/offline ───────────────────────────
+  # ── Conectividad online/offline ───────────────────────
   connectivity_plus: ^5.0.2
 
-  # ── Almacenamiento seguro (token JWT) ─────────────────────
+  # ── Almacenamiento seguro (token JWT) ─────────────────
   flutter_secure_storage: ^9.0.0
 
-  # ── Imágenes ──────────────────────────────────────────────
+  # ── Imágenes ──────────────────────────────────────────
   cached_network_image: ^3.3.1
 
-  # ── UUID para device_id anónimo ───────────────────────────
+  # ── UUID para device_id anónimo ───────────────────────
   uuid: ^4.3.3
 
-  # ── Utilidades ────────────────────────────────────────────
+  # ── Utilidades ────────────────────────────────────────
   intl: ^0.19.0
   permission_handler: ^11.3.0
 
@@ -63,7 +65,6 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   build_runner: ^2.4.8
   flutter_launcher_icons: ^0.13.1
-  riverpod_generator: ^2.3.0
 
 flutter_launcher_icons:
   android: true
