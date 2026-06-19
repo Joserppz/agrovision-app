@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/constants.dart';
@@ -259,44 +260,36 @@ class _ModeButton extends StatelessWidget {
   }
 }
 
-class _ScanLine extends StatefulWidget {
-  @override
-  State<_ScanLine> createState() => _ScanLineState();
-}
-
-class _ScanLineState extends State<_ScanLine> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(duration: const Duration(milliseconds: 1800), vsync: this)..repeat(reverse: true);
-    _anim = Tween<double>(begin: 8, end: 224).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
+class _ScanLine extends HookWidget {
+  const _ScanLine();
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) => Positioned(
-        top: _anim.value,
-        left: 8, right: 8,
-        child: Container(
-          height: 2,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [Colors.transparent, AgroColors.yellow.withOpacity(0.9), Colors.transparent]),
-            borderRadius: BorderRadius.circular(4),
-          ),
+    final ctrl = useAnimationController(duration: const Duration(milliseconds: 1800));
+    final anim = useAnimation(Tween<double>(begin: 8, end: 224).animate(
+      CurvedAnimation(parent: ctrl, curve: Curves.easeInOut),
+    ));
+
+    useEffect(() {
+      ctrl.repeat(reverse: true);
+      return null;
+    }, const []);
+
+    return Positioned(
+      top: anim,
+      left: 8, right: 8,
+      child: Container(
+        height: 2,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [
+            Colors.transparent,
+            AgroColors.yellow.withOpacity(0.9),
+            Colors.transparent
+          ]),
+          borderRadius: BorderRadius.circular(4),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
   }
 }
 

@@ -2,9 +2,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:path_provider/path_provider.dart';
 
-import '../core/exceptions.dart';
 import '../models/scan_result.dart';
 import '../services/scan_service.dart';
 import '../services/location_service.dart';
@@ -124,6 +122,8 @@ class ScanController extends Notifier<ScanStateData> {
   void reset() => state = const ScanStateData();
 
   saveCurrentScan({required String customName, required String category}) {}
+
+  void setResultForViewing(ScanResult scan) {}
 }
 
 final scanControllerProvider = NotifierProvider<ScanController, ScanStateData>(ScanController.new);

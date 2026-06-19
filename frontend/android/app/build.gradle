@@ -17,7 +17,7 @@ def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "
 
 android {
     namespace = "com.example.frontend"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = "25.1.8937393"
 
     compileOptions {
@@ -56,6 +56,7 @@ afterEvaluate {
                 if (namespace == null) {
                     namespace "com.example.${it.name.replaceAll('[^a-zA-Z0-9]', '')}"
                 }
+                compileSdkVersion 35 // <- FORZAMOS LA VERSIÓN PARA TODOS LOS PLUGINS
             }
         }
     }
