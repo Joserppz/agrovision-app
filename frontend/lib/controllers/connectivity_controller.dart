@@ -1,78 +1,79 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ConnectivityController extends GetxController {
+// 1. ESTADO INMUTABLE
+class ConnectivityState {
+  final bool isOnline;
+  final int pendingSyncCount;
+
+  ConnectivityState({
+    this.isOnline = true,
+    this.pendingSyncCount = 0,
+  });
+
+  ConnectivityState copyWith({bool? isOnline, int? pendingSyncCount}) {
+    return ConnectivityState(
+      isOnline: isOnline ?? this.isOnline,
+      pendingSyncCount: pendingSyncCount ?? this.pendingSyncCount,
+    );
+  }
+}
+
+// 2. NOTIFIER
+class ConnectivityController extends Notifier<ConnectivityState> {
   final _connectivity = Connectivity();
-  
-  // 1. Corregido: Ya no es una Lista, ahora es un objeto individual
-  StreamSubscription<ConnectivityResult>? _subscription;
-
-  final isOnline         = true.obs;
-  final pendingSyncCount = 0.obs;
+  StreamSubscription? _subscription;
 
   @override
-  void onInit() {
-    super.onInit();
-    _checkInitialStatus();
-    _listenToChanges();
+  ConnectivityState build() {
+    Future.microtask(() {
+      _checkInitialStatus();
+      _listenToChanges();
+    });
+
+    // Se ejecuta automáticamente si el provider se destruye
+    ref.onDispose(() {
+      _subscription?.cancel();
+    });
+
+    return ConnectivityState();
   }
 
   Future<void> _checkInitialStatus() async {
-    // 2. Corregido: checkConnectivity() devuelve un ConnectivityResult único en v6
     final result = await _connectivity.checkConnectivity();
     _updateStatus(result);
   }
 
   void _listenToChanges() {
-    // 3. Corregido: Quitamos los trucos de casteo raros. Recibe un 'result' directo y limpio.
     _subscription = _connectivity.onConnectivityChanged.listen((result) {
-      final wasOffline = !isOnline.value;
       _updateStatus(result);
-      if (wasOffline && isOnline.value) {
-        _onReconnected();
-      }
     });
   }
 
-  // 4. Corregido: El método ahora acepta un objeto único en lugar de List<ConnectivityResult>
-  void _updateStatus(ConnectivityResult result) {
-    // Ya no necesitas usar .any(). La validación se hace directamente con el resultado.
-    final connected = result == ConnectivityResult.mobile ||
-        result == ConnectivityResult.wifi ||
-        result == ConnectivityResult.ethernet;
+  void _updateStatus(dynamic result) {
+    bool connected = false;
+    
+    // Compatibilidad segura para las diferentes versiones de connectivity_plus
+    if (result is List<ConnectivityResult>) {
+      connected = result.any((r) => r != ConnectivityResult.none);
+    } else if (result is ConnectivityResult) {
+      connected = result == ConnectivityResult.mobile ||
+                  result == ConnectivityResult.wifi ||
+                  result == ConnectivityResult.ethernet;
+    }
 
-    if (isOnline.value != connected) {
-      isOnline.value = connected;
-      if (connected) {
-        Get.snackbar(
-          '📶 Conexión restaurada',
-          'Sincronizando datos pendientes...',
-          duration: const Duration(seconds: 3),
-          snackPosition: SnackPosition.TOP,
-        );
-      } else {
-        Get.snackbar(
-          '📵 Sin conexión',
-          'Modo offline activado — los escaneos se guardan localmente',
-          duration: const Duration(seconds: 4),
-          snackPosition: SnackPosition.TOP,
-        );
-      }
+    if (state.isOnline != connected) {
+      state = state.copyWith(isOnline: connected);
     }
   }
 
-  void _onReconnected() {
-    // SyncService escucha este cambio via ever() en su propio init
-  }
-
   void updatePendingCount(int count) {
-    pendingSyncCount.value = count;
-  }
-
-  @override
-  void onClose() {
-    _subscription?.cancel();
-    super.onClose();
+    state = state.copyWith(pendingSyncCount: count);
   }
 }
+
+// 3. PROVIDER GLOBAL
+final connectivityProvider = NotifierProvider<ConnectivityController, ConnectivityState>(() {
+  return ConnectivityController();
+});

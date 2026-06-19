@@ -1,6 +1,5 @@
-// services/forum_service.dart
-import 'package:get/get.dart';
 
-class ForumService extends GetxService {
+
+class ForumService {
   // Implementación completa cuando hagamos el foro
 }

@@ -1,204 +1,169 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
-import '../core/constants.dart';
+import 'package:flutter/material.dart';
+
 import '../core/exceptions.dart';
 import '../models/scan_result.dart';
 import '../services/scan_service.dart';
 import '../services/location_service.dart';
 import '../services/local_db_service.dart';
-import 'connectivity_controller.dart';
+import '../services/api_service.dart';
 
-enum ScanState { idle, capturing, analyzing, success, error, lowConfidence }
+// --- PROVIDERS DE INYECCIÓN ---
+final locationServiceProvider = Provider((ref) => LocationService());
+
+final scanServiceProvider = Provider((ref) {
+  return ScanService(
+    ref.read(apiServiceProvider),
+    ref.read(localDbProvider),
+  );
+});
+
+// --- ESTADOS ---
+enum ScanStatus { idle, capturing, analyzing, success, error, lowConfidence }
 enum AnalysisMode { yolo, groq, hybrid }
 
-class ScanController extends GetxController {
-  final ScanService        _scanService;
-  final LocationService    _locationService;
-  final ConnectivityController _connectivity;
+class ScanStateData {
+  final ScanStatus status;
+  final String errorMessage;
+  final ScanResult? result;
+  final File? capturedImage;
+  final Position? currentPosition;
+  final AnalysisMode selectedMode;
+  final bool isCameraReady;
+  final bool isFrontCamera;
 
-  ScanController(this._scanService, this._locationService, this._connectivity);
+  const ScanStateData({
+    this.status = ScanStatus.idle,
+    this.errorMessage = '',
+    this.result,
+    this.capturedImage,
+    this.currentPosition,
+    this.selectedMode = AnalysisMode.hybrid,
+    this.isCameraReady = false,
+    this.isFrontCamera = false,
+  });
 
-  final state           = ScanState.idle.obs;
-  final errorMessage    = ''.obs;
-  final result          = Rxn<ScanResult>();
-  final capturedImage   = Rxn<File>();
-  final currentPosition = Rxn<Position>();
-  final selectedMode    = AnalysisMode.hybrid.obs;
+  ScanStateData copyWith({
+    ScanStatus? status, String? errorMessage, ScanResult? result,
+    File? capturedImage, Position? currentPosition, AnalysisMode? selectedMode,
+    bool? isCameraReady, bool? isFrontCamera,
+  }) => ScanStateData(
+    status: status ?? this.status,
+    errorMessage: errorMessage ?? this.errorMessage,
+    result: result ?? this.result,
+    capturedImage: capturedImage ?? this.capturedImage,
+    currentPosition: currentPosition ?? this.currentPosition,
+    selectedMode: selectedMode ?? this.selectedMode,
+    isCameraReady: isCameraReady ?? this.isCameraReady,
+    isFrontCamera: isFrontCamera ?? this.isFrontCamera,
+  );
+}
 
+// --- NOTIFIER ---
+class ScanController extends Notifier<ScanStateData> {
   CameraController? cameraController;
-  final isCameraReady   = false.obs;
-  final cameras         = <CameraDescription>[].obs;
-  final isFrontCamera   = false.obs;
+  List<CameraDescription> _cameras = [];
 
   @override
-  Future<void> onInit() async {
-    super.onInit();
-    await _initCamera();
-    await _loadPosition();
+  ScanStateData build() {
+    // La inicialización se dispara de forma independiente
+    Future.microtask(() {
+      _initCamera();
+      _loadPosition();
+    });
+    return const ScanStateData();
   }
+
+  // Métodos de acceso a servicios vía ref
+  ScanService get _scanService => ref.read(scanServiceProvider);
+  LocationService get _locationService => ref.read(locationServiceProvider);
 
   Future<void> _initCamera() async {
     try {
-      isCameraReady.value = false;
-      final available = await availableCameras();
-      cameras.value = available;
+      _cameras = await availableCameras();
+      if (_cameras.isEmpty) return;
 
-      if (available.isEmpty) {
-        errorMessage.value = 'No se encontró ninguna cámara';
-        return;
-      }
+      final dir = state.isFrontCamera ? CameraLensDirection.front : CameraLensDirection.back;
+      final cam = _cameras.firstWhere((c) => c.lensDirection == dir, orElse: () => _cameras.first);
 
-      final targetDirection = isFrontCamera.value ? CameraLensDirection.front : CameraLensDirection.back;
-      final selectedCamera = available.firstWhere(
-        (c) => c.lensDirection == targetDirection,
-        orElse: () => available.first,
-      );
-
-      if (cameraController != null) await cameraController!.dispose();
-
-      cameraController = CameraController(
-        selectedCamera,
-        ResolutionPreset.veryHigh, 
-        enableAudio: false,        
-      );
-
+      await cameraController?.dispose();
+      cameraController = CameraController(cam, ResolutionPreset.veryHigh, enableAudio: false);
       await cameraController!.initialize();
-      isCameraReady.value = true;
+      state = state.copyWith(isCameraReady: true);
     } catch (e) {
-      errorMessage.value = 'Error al iniciar la cámara: $e';
+      state = state.copyWith(status: ScanStatus.error, errorMessage: 'Error de cámara');
     }
   }
 
   Future<void> _loadPosition() async {
-    try {
-      currentPosition.value = await _locationService.getCurrentPosition();
-    } catch (_) {}
+    final pos = await _locationService.getCurrentPosition();
+    if (pos != null) state = state.copyWith(currentPosition: pos);
   }
 
-  Future<void> toggleCamera() async {
-    if (cameras.isEmpty) return;
-    isFrontCamera.value = !isFrontCamera.value;
-    await _initCamera();
-  }
-
-  void setMode(AnalysisMode mode) {
-    selectedMode.value = mode;
-  }
-
-  Future<void> takePictureAndAnalyze() async {
-    if (state.value == ScanState.capturing || state.value == ScanState.analyzing) return;
-    if (!isCameraReady.value || cameraController == null) return;
-
-    try {
-      state.value = ScanState.capturing;
-      final xFile = await cameraController!.takePicture();
-      capturedImage.value = File(xFile.path);
-      await _processImage(capturedImage.value!); 
-    } catch (e) {
-      _showError('Error al capturar la imagen.');
-      state.value = ScanState.idle;
-    }
-  }
-
-  Future<void> analyzeFromGallery(File imageFile) async {
-    if (state.value == ScanState.capturing || state.value == ScanState.analyzing) return;
-    capturedImage.value = imageFile;
-    await _processImage(imageFile);
-  }
-
-  Future<void> _processImage(File image) async {
-    try {
-      state.value = ScanState.analyzing;
-      Get.toNamed(AgroRoutes.loading);
-
-      Position? pos = currentPosition.value;
-      if (pos == null) {
-        pos = await _locationService.getCurrentPosition();
-        currentPosition.value = pos;
-      }
-
-      String? locationName;
-      if (pos != null) {
-        locationName = await _locationService.getLocationName(pos.latitude, pos.longitude);
-      }
-
-      ScanResult scanResult = await _scanService.analyzeImage(
-        imageFile:    image,
-        isOnline:     _connectivity.isOnline.value,
-        mode:         selectedMode.value,
-        latitude:     pos?.latitude,
-        longitude:    pos?.longitude,
-        locationName: locationName,
-      );
-
-      result.value = scanResult;
-      state.value  = ScanState.success;
-      Get.offNamed(AgroRoutes.results);
-
-    } on LowConfidenceException catch (e) {
-      state.value = ScanState.lowConfidence;
-      errorMessage.value = e.userMessage;
-      Get.back(); 
-      _showError(e.userMessage);
-    } on NoConnectionException catch (e) {
-      state.value = ScanState.error;
-      errorMessage.value = e.userMessage;
-      Get.back();
-      _showWarning(e.userMessage);
-    } on AgroException catch (e) {
-      state.value = ScanState.error;
-      errorMessage.value = e.userMessage;
-      Get.back();
-      _showError(e.userMessage);
-    } catch (e) {
-      state.value = ScanState.error;
-      errorMessage.value = 'Error inesperado al analizar';
-      if (Get.currentRoute == AgroRoutes.loading) Get.back();
-      _showError('Error inesperado. Intenta de nuevo.');
-    }
-  }
-
-  // LÓGICA DE GUARDADO MANUAL ACTUALIZADA
-  Future<void> saveCurrentScan({required String customName, required String category}) async {
-    final currentResult = result.value;
-    final currentImage = capturedImage.value;
+  Future<bool> takePictureAndAnalyze() async {
+    if (state.status == ScanStatus.capturing || state.status == ScanStatus.analyzing) return false;
     
-    if (currentResult != null && currentImage != null && Get.isRegistered<LocalDbService>()) {
-      try {
-        final dir = await getApplicationDocumentsDirectory();
-        final localPath = '${dir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        
-        await currentImage.copy(localPath);
-        
-        final resultToSave = currentResult.copyWith(
-          diseaseName: customName,
-          plantCategory: category,
-          imagePath: localPath
-        );
-        
-        await Get.find<LocalDbService>().saveScan(resultToSave);
-      } catch (e) {
-        print("🚨 Error al guardar el escaneo: $e");
-      }
+    state = state.copyWith(status: ScanStatus.capturing);
+    try {
+      final xFile = await cameraController!.takePicture();
+      final image = File(xFile.path);
+      state = state.copyWith(capturedImage: image);
+      return await _processImage(image);
+    } catch (e) {
+      state = state.copyWith(status: ScanStatus.idle);
+      return false;
     }
   }
 
-  void reset() {
-    state.value        = ScanState.idle;
-    result.value       = null;
-    capturedImage.value = null;
-    errorMessage.value = '';
+  Future<bool> _processImage(File image) async {
+    state = state.copyWith(status: ScanStatus.analyzing);
+    try {
+      final pos = state.currentPosition;
+      final locName = pos != null ? await _locationService.getLocationName(pos.latitude, pos.longitude) : null;
+      
+      final result = await _scanService.analyzeImage(
+        imageFile: image, isOnline: true, mode: state.selectedMode,
+        latitude: pos?.latitude, longitude: pos?.longitude, locationName: locName,
+      );
+      
+      state = state.copyWith(status: ScanStatus.success, result: result);
+      return true;
+    } catch (e) {
+      state = state.copyWith(status: ScanStatus.error, errorMessage: 'Error al analizar');
+      return false;
+    }
   }
 
-  void _showError(String msg) => Get.snackbar('⚠️ Error', msg, snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
-  void _showWarning(String msg) => Get.snackbar('📵 Sin conexión', msg, snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
+  Future<void> saveCurrentScan({required String customName, required String category}) async {
+    final result = state.result;
+    final image = state.capturedImage;
+    if (result == null || image == null) return;
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final localPath = '${dir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await image.copy(localPath);
+
+      // Usamos el servicio local directamente
+      await ref.read(localDbProvider).saveScan(result.copyWith(
+        diseaseName: customName,
+        plantCategory: category,
+        imagePath: localPath,
+      ));
+    } catch (e) {
+      debugPrint('Error al guardar: $e');
+    }
+  }
 
   @override
-  void onClose() {
+  void dispose() {
     cameraController?.dispose();
-    super.onClose();
+    super.dispose();
   }
 }
+
+final scanControllerProvider = NotifierProvider<ScanController, ScanStateData>(ScanController.new);

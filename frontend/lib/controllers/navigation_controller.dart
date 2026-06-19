@@ -1,10 +1,4 @@
-// lib/controllers/navigation_controller.dart
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class NavigationController extends GetxController {
-  var currentIndex = 0.obs;
-
-  void changePage(int index) {
-    currentIndex.value = index;
-  }
-}
+// Un provider súper ligero para controlar el índice del BottomNavigationBar
+final navigationProvider = StateProvider<int>((ref) => 0);

@@ -1,52 +1,73 @@
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/scan_result.dart';
 import '../services/local_db_service.dart';
 
-class HistoryController extends GetxController {
-  final LocalDbService _db;
+// 1. ESTADO INMUTABLE
+class HistoryState {
+  final List<ScanResult> scans;
+  final bool isLoading;
+  final String filterCategory;
 
-  HistoryController(this._db);
+  HistoryState({
+    this.scans = const [],
+    this.isLoading = false,
+    this.filterCategory = 'Todas',
+  });
 
-  final scans      = <ScanResult>[].obs;
-  final isLoading  = false.obs;
-  
-  // NUEVO: Filtros basados en categoría botánica
-  final filterCategory = 'Todas'.obs; 
+  HistoryState copyWith({
+    List<ScanResult>? scans,
+    bool? isLoading,
+    String? filterCategory,
+  }) {
+    return HistoryState(
+      scans: scans ?? this.scans,
+      isLoading: isLoading ?? this.isLoading,
+      filterCategory: filterCategory ?? this.filterCategory,
+    );
+  }
+}
 
+// 2. NOTIFIER
+class HistoryController extends Notifier<HistoryState> {
   @override
-  void onInit() {
-    super.onInit();
-    loadHistory();
-    ever(filterCategory, (_) => _applyFilter());
+  HistoryState build() {
+    Future.microtask(() => loadHistory());
+    return HistoryState();
   }
 
   Future<void> loadHistory() async {
-    isLoading.value = true;
+    state = state.copyWith(isLoading: true);
     try {
-      final all = await _db.getAllScans(limit: 100);
-      scans.value = all;
-      _applyFilter();
-    } finally {
-      isLoading.value = false;
+      final db = ref.read(localDbProvider);
+      await db.init();
+      final all = await db.getAllScans(limit: 100);
+      state = state.copyWith(scans: all, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
     }
   }
 
-  void _applyFilter() {}
-
   List<ScanResult> get filteredScans {
-    if (filterCategory.value == 'Todas') return scans;
-    
-    // Filtramos exactamente por el string de la categoría que nos devuelve Groq
-    return scans.where((s) {
-        final cat = s.plantCategory ?? 'Planta'; // Si es nulo, asumimos Planta
-        return cat.toLowerCase() == filterCategory.value.toLowerCase();
+    if (state.filterCategory == 'Todas') return state.scans;
+    return state.scans.where((s) {
+      final cat = s.plantCategory ?? 'Planta';
+      return cat.toLowerCase() == state.filterCategory.toLowerCase();
     }).toList();
   }
 
   Future<void> deleteScan(String id) async {
-    await _db.deleteScan(id);
-    scans.removeWhere((s) => s.id == id);
+    final db = ref.read(localDbProvider);
+    await db.deleteScan(id);
+    final updatedScans = state.scans.where((s) => s.id != id).toList();
+    state = state.copyWith(scans: updatedScans);
   }
 
-  void setFilter(String category) => filterCategory.value = category;
+  void setFilter(String category) {
+    state = state.copyWith(filterCategory: category);
+  }
 }
+
+// 3. PROVIDER GLOBAL
+final historyControllerProvider = NotifierProvider<HistoryController, HistoryState>(() {
+  return HistoryController();
+});

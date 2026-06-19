@@ -1,50 +1,44 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import '../core/constants.dart';
 
-class LoadingScreen extends StatefulWidget {
+// Usamos HookWidget en vez de StatefulWidget (100% Arquitectura Limpia)
+class LoadingScreen extends HookWidget {
   const LoadingScreen({super.key});
 
   @override
-  State<LoadingScreen> createState() => _LoadingScreenState();
-}
-
-class _LoadingScreenState extends State<LoadingScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _pulse;
-
-  final _steps = [
-    'Procesando imagen...',
-    'Consultando modelo YOLOv8...',
-    'Detectando patrones foliares...',
-    'Buscando tratamiento en Supabase...',
-  ];
-  int _stepIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      duration: const Duration(seconds: 1),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _pulse = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-
-    // Rota los textos de estado cada 1.5 segundos
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(milliseconds: 1500));
-      if (!mounted) return false;
-      setState(() => _stepIndex = (_stepIndex + 1) % _steps.length);
-      return true;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final steps = [
+      'Procesando imagen...',
+      'Consultando modelo YOLOv8...',
+      'Detectando patrones foliares...',
+      'Buscando tratamiento en Supabase...',
+    ];
+    
+    // Estado local manejado por Hooks
+    final stepIndex = useState(0);
+
+    // Controlador de animación
+    final ctrl = useAnimationController(duration: const Duration(seconds: 1));
+    final pulse = useAnimation(Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: ctrl, curve: Curves.easeInOut),
+    ));
+
+    // useEffect reemplaza a initState y dispose
+    useEffect(() {
+      ctrl.repeat(reverse: true);
+      
+      bool isActive = true;
+      Future.doWhile(() async {
+        await Future.delayed(const Duration(milliseconds: 1500));
+        if (!isActive) return false;
+        stepIndex.value = (stepIndex.value + 1) % steps.length;
+        return true;
+      });
+      
+      return () => isActive = false; // Se ejecuta al destruir la pantalla
+    }, const []);
+
     return Scaffold(
       backgroundColor: AgroColors.cream,
       body: SafeArea(
@@ -54,95 +48,57 @@ class _LoadingScreenState extends State<LoadingScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo animado
-                ScaleTransition(
-                  scale: _pulse,
+                Transform.scale(
+                  scale: pulse,
                   child: Container(
                     width: 100, height: 100,
                     decoration: BoxDecoration(
                       color: AgroColors.greenFaint,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                          color: AgroColors.green.withOpacity(0.3),
-                          width: 2),
+                      border: Border.all(color: AgroColors.green.withOpacity(0.3), width: 2),
                     ),
-                    child: const Icon(
-                      Icons.eco_outlined,
-                      color: AgroColors.green,
-                      size: 48,
-                    ),
+                    child: const Icon(Icons.eco_outlined, color: AgroColors.green, size: 48),
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
-                // Spinner
                 const SizedBox(
                   width: 40, height: 40,
-                  child: CircularProgressIndicator(
-                    color: AgroColors.green,
-                    strokeWidth: 3,
-                  ),
+                  child: CircularProgressIndicator(color: AgroColors.green, strokeWidth: 3),
                 ),
-
                 const SizedBox(height: 32),
-
                 Text(
                   'Analizando cultivo',
-                  style: Get.textTheme.titleLarge?.copyWith(
-                    color: AgroColors.green,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AgroColors.green),
                 ),
-
                 const SizedBox(height: 12),
-
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 400),
                   child: Text(
-                    _steps[_stepIndex],
-                    key: ValueKey(_stepIndex),
-                    style: Get.textTheme.bodyMedium?.copyWith(
-                      color: AgroColors.brown,
-                    ),
+                    steps[stepIndex.value],
+                    key: ValueKey(stepIndex.value),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AgroColors.brown),
                     textAlign: TextAlign.center,
                   ),
                 ),
-
                 const SizedBox(height: 32),
-
-                // Dots
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(3, (i) => _Dot(delay: i * 200)),
                 ),
-
                 const SizedBox(height: 48),
-
-                // Info del flujo
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: AgroColors.greenFaint,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: AgroColors.green.withOpacity(0.2)),
+                    border: Border.all(color: AgroColors.green.withOpacity(0.2)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.info_outline,
-                          color: AgroColors.green, size: 14),
+                      Icon(Icons.info_outline, color: AgroColors.green, size: 14),
                       SizedBox(width: 8),
-                      Text(
-                        'FastAPI → YOLOv8 → Supabase',
-                        style: TextStyle(
-                          fontFamily: AgroText.fontBody,
-                          fontSize: 11,
-                          color: AgroColors.green,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      Text('FastAPI → YOLOv8 → Supabase', style: TextStyle(fontFamily: AgroText.fontBody, fontSize: 11, color: AgroColors.green, fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
@@ -153,57 +109,34 @@ class _LoadingScreenState extends State<LoadingScreen>
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
 }
 
-class _Dot extends StatefulWidget {
+class _Dot extends HookWidget {
   final int delay;
   const _Dot({required this.delay});
 
   @override
-  State<_Dot> createState() => _DotState();
-}
+  Widget build(BuildContext context) {
+    final ctrl = useAnimationController(duration: const Duration(milliseconds: 800));
+    final anim = useAnimation(Tween<double>(begin: 0.4, end: 1.0).animate(ctrl));
 
-class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
+    useEffect(() {
+      bool isActive = true;
+      Future.delayed(Duration(milliseconds: delay), () {
+        if (isActive) ctrl.repeat(reverse: true);
+      });
+      return () => isActive = false;
+    }, const []);
 
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) _ctrl.repeat(reverse: true);
-    });
-    _anim = Tween<double>(begin: 0.4, end: 1.0).animate(_ctrl);
-  }
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 4),
-    child: FadeTransition(
-      opacity: _anim,
-      child: Container(
-        width: 8, height: 8,
-        decoration: const BoxDecoration(
-          color: AgroColors.green,
-          shape: BoxShape.circle,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Opacity(
+        opacity: anim,
+        child: Container(
+          width: 8, height: 8,
+          decoration: const BoxDecoration(color: AgroColors.green, shape: BoxShape.circle),
         ),
       ),
-    ),
-  );
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+    );
   }
 }

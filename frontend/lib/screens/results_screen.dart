@@ -1,146 +1,118 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
 import '../controllers/scan_controller.dart';
 import '../models/scan_result.dart';
 import '../widgets/confidence_badge.dart';
 
-class ResultsScreen extends StatelessWidget {
+class ResultsScreen extends ConsumerWidget {
   const ResultsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final ctrl = Get.find<ScanController>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(scanControllerProvider);
+    final ctrl = ref.read(scanControllerProvider.notifier);
+    final result = state.result;
 
-    return Obx(() {
-      final result = ctrl.result.value;
+    if (result == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-      if (result == null) {
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
-      }
-
-      return Scaffold(
-        backgroundColor: AgroColors.cream,
-        body: Column(
-          children: [
-            _buildImageBand(ctrl),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDiseaseCard(result),
-                    
-                    if (result.description != null && result.description!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AgroColors.surface,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AgroColors.border),
-                        ),
-                        child: Text(
-                          result.description!,
-                          style: const TextStyle(
-                            fontFamily: AgroText.fontBody,
-                            fontSize: 14,
-                            height: 1.45,
-                            color: AgroColors.textPrimary,
-                          ),
-                        ),
+    return Scaffold(
+      backgroundColor: AgroColors.cream,
+      body: Column(
+        children: [
+          _buildImageBand(context, state),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDiseaseCard(result),
+                  
+                  if (result.description != null && result.description!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AgroColors.surface,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AgroColors.border),
                       ),
-                    ],
-
-                    const SizedBox(height: 12),
-                    _buildTreatmentCard(result.treatment),
-                    const SizedBox(height: 12),
-                    if (result.hasLocation) _buildLocationCard(result),
-                    if (result.hasLocation) const SizedBox(height: 12),
-                    
-                    _buildActionRow(context, ctrl), 
-                    
-                    const SizedBox(height: 16),
+                      child: Text(
+                        result.description!,
+                        style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 14, height: 1.45, color: AgroColors.textPrimary),
+                      ),
+                    ),
                   ],
-                ),
+
+                  const SizedBox(height: 12),
+                  _buildTreatmentCard(result.treatment),
+                  const SizedBox(height: 12),
+                  if (result.hasLocation) _buildLocationCard(context, result),
+                  if (result.hasLocation) const SizedBox(height: 12),
+                  
+                  _buildActionRow(context, state, ctrl), 
+                  
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
-          ],
-        ),
-      );
-    });
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildImageBand(ScanController ctrl) {
+  Widget _buildImageBand(BuildContext context, ScanStateData state) {
     return SizedBox(
       height: 200,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ctrl.capturedImage.value != null
-              ? Image.file(ctrl.capturedImage.value!, fit: BoxFit.cover)
-              : (ctrl.result.value?.imagePath != null)
-                  ? Image.file(File(ctrl.result.value!.imagePath!), fit: BoxFit.cover)
+          state.capturedImage != null
+              ? Image.file(state.capturedImage!, fit: BoxFit.cover)
+              : (state.result?.imagePath != null)
+                  ? Image.file(File(state.result!.imagePath!), fit: BoxFit.cover)
                   : Container(
                       color: AgroColors.green.withOpacity(0.3),
-                      child: const Center(
-                        child: Icon(Icons.history_rounded, size: 40, color: Colors.white54),
-                      ),
+                      child: const Center(child: Icon(Icons.history_rounded, size: 40, color: Colors.white54)),
                     ),
           Container(color: Colors.black26),
-          if (ctrl.result.value != null && (ctrl.capturedImage.value != null || ctrl.result.value!.imagePath != null))
+          if (state.result != null && (state.capturedImage != null || state.result!.imagePath != null))
             Center(
               child: Container(
                 width: 140, height: 110,
-                decoration: BoxDecoration(
-                  border: Border.all(color: AgroColors.yellow, width: 2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
+                decoration: BoxDecoration(border: Border.all(color: AgroColors.yellow, width: 2), borderRadius: BorderRadius.circular(6)),
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: Transform.translate(
                     offset: const Offset(0, -22),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AgroColors.yellow,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        ctrl.result.value!.displayName,
-                        style: const TextStyle(
-                          fontFamily: AgroText.fontBody,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1000),
-                        ),
-                      ),
+                      decoration: BoxDecoration(color: AgroColors.yellow, borderRadius: BorderRadius.circular(4)),
+                      child: Text(state.result!.displayName, style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF1A1000))),
                     ),
                   ),
                 ),
               ),
             ),
-          if (ctrl.result.value != null)
-            Positioned(
-              top: 12, right: 12,
-              child: ConfidenceBadge(confidence: ctrl.result.value!.confidence),
-            ),
+          if (state.result != null)
+            Positioned(top: 12, right: 12, child: ConfidenceBadge(confidence: state.result!.confidence)),
           Positioned(
             top: 8, left: 8,
             child: SafeArea(
               child: GestureDetector(
-                onTap: () => Get.back(),
+                onTap: () => context.pop(),
                 child: Container(
                   width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.black38,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(10)),
                   child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
                 ),
               ),
@@ -151,14 +123,10 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDiseaseCard(result) {
+  Widget _buildDiseaseCard(ScanResult result) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AgroColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AgroColors.border),
-      ),
+      decoration: BoxDecoration(color: AgroColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AgroColors.border)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -169,25 +137,9 @@ class ResultsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      result.displayName,
-                      style: const TextStyle(
-                        fontFamily: AgroText.fontDisplay,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: AgroColors.green,
-                      ),
-                    ),
+                    Text(result.displayName, style: const TextStyle(fontFamily: AgroText.fontDisplay, fontSize: 22, fontWeight: FontWeight.w700, color: AgroColors.green)),
                     const SizedBox(height: 2),
-                    Text(
-                      result.scientificName,
-                      style: const TextStyle(
-                        fontFamily: AgroText.fontBody,
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: AgroColors.brown,
-                      ),
-                    ),
+                    Text(result.scientificName, style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 12, fontStyle: FontStyle.italic, color: AgroColors.brown)),
                   ],
                 ),
               ),
@@ -195,34 +147,18 @@ class ResultsScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
-            'SEVERIDAD ESTIMADA',
-            style: TextStyle(
-              fontFamily: AgroText.fontBody,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AgroColors.brown,
-              letterSpacing: 0.8,
-            ),
-          ),
+          const Text('SEVERIDAD ESTIMADA', style: TextStyle(fontFamily: AgroText.fontBody, fontSize: 10, fontWeight: FontWeight.w700, color: AgroColors.brown, letterSpacing: 0.8)),
           const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: result.confidence,
-              minHeight: 7,
-              backgroundColor: AgroColors.border,
-              valueColor: AlwaysStoppedAnimation<Color>(result.severityColor),
-            ),
+            child: LinearProgressIndicator(value: result.confidence, minHeight: 7, backgroundColor: AgroColors.border, valueColor: AlwaysStoppedAnimation<Color>(result.severityColor)),
           ),
           const SizedBox(height: 14),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 6, runSpacing: 6,
             children: [
               const _Tag(label: 'Vegetación', color: AgroColors.green),
-              if (result.severityLevel == 'critical')
-                const _Tag(label: 'Requiere Acción', color: AgroColors.yellow),
+              if (result.severityLevel == 'critical') const _Tag(label: 'Requiere Acción', color: AgroColors.yellow),
             ],
           ),
         ],
@@ -242,11 +178,7 @@ class ResultsScreen extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AgroColors.greenFaint,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AgroColors.green.withOpacity(0.2)),
-      ),
+      decoration: BoxDecoration(color: AgroColors.greenFaint, borderRadius: BorderRadius.circular(18), border: Border.all(color: AgroColors.green.withOpacity(0.2))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -254,15 +186,7 @@ class ResultsScreen extends StatelessWidget {
             children: [
               Icon(Icons.medical_services_outlined, color: AgroColors.green, size: 18),
               SizedBox(width: 8),
-              Text(
-                'Plan de Acción Detallado',
-                style: TextStyle(
-                  fontFamily: AgroText.fontBody,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AgroColors.green,
-                ),
-              ),
+              Text('Plan de Acción Detallado', style: TextStyle(fontFamily: AgroText.fontBody, fontSize: 14, fontWeight: FontWeight.w800, color: AgroColors.green)),
             ],
           ),
           const SizedBox(height: 14),
@@ -271,22 +195,9 @@ class ResultsScreen extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 2),
-                  child: Icon(Icons.check_circle, color: AgroColors.green, size: 20),
-                ),
+                const Padding(padding: EdgeInsets.only(top: 2), child: Icon(Icons.check_circle, color: AgroColors.green, size: 20)),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    paso.trim(),
-                    style: const TextStyle(
-                      fontFamily: AgroText.fontBody,
-                      fontSize: 13.5,
-                      color: AgroColors.textPrimary,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
+                Expanded(child: Text(paso.trim(), style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 13.5, color: AgroColors.textPrimary, height: 1.45))),
               ],
             ),
           )),
@@ -295,27 +206,14 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLocationCard(result) {
+  Widget _buildLocationCard(BuildContext context, ScanResult result) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AgroColors.yellowLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AgroColors.yellow.withOpacity(0.4)),
-      ),
+      decoration: BoxDecoration(color: AgroColors.yellowLight, borderRadius: BorderRadius.circular(16), border: Border.all(color: AgroColors.yellow.withOpacity(0.4))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'COORDENADAS DEL ESCANEO',
-            style: TextStyle(
-              fontFamily: AgroText.fontBody,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AgroColors.brown,
-              letterSpacing: 0.8,
-            ),
-          ),
+          const Text('COORDENADAS DEL ESCANEO', style: TextStyle(fontFamily: AgroText.fontBody, fontSize: 10, fontWeight: FontWeight.w700, color: AgroColors.brown, letterSpacing: 0.8)),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -323,15 +221,8 @@ class ResultsScreen extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  result.locationName ??
-                      'Lat: ${result.latitude!.toStringAsFixed(4)}° · '
-                      'Lon: ${result.longitude!.toStringAsFixed(4)}°',
-                  style: const TextStyle(
-                    fontFamily: AgroText.fontBody,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AgroColors.brown,
-                  ),
+                  result.locationName ?? 'Lat: ${result.latitude!.toStringAsFixed(4)}° · Lon: ${result.longitude!.toStringAsFixed(4)}°',
+                  style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 13, fontWeight: FontWeight.w500, color: AgroColors.brown),
                 ),
               ),
             ],
@@ -340,12 +231,10 @@ class ResultsScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => Get.toNamed(AgroRoutes.map),
+              onPressed: () => context.push(AgroRoutes.map),
               icon: const Icon(Icons.map_outlined, size: 16),
               label: const Text('Ver en el mapa'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
             ),
           ),
         ],
@@ -353,8 +242,8 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionRow(BuildContext context, ScanController ctrl) {
-    bool isFromHistory = ctrl.capturedImage.value == null;
+  Widget _buildActionRow(BuildContext context, ScanStateData state, ScanController ctrl) {
+    bool isFromHistory = state.capturedImage == null;
 
     return Row(
       children: [
@@ -362,9 +251,9 @@ class ResultsScreen extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: () {
               if (!isFromHistory) {
-                _showSaveDialog(context, ctrl, ctrl.result.value!);
+                _showSaveDialog(context, ctrl, state.result!);
               } else {
-                Get.offNamed(AgroRoutes.home);
+                context.go(AgroRoutes.home);
               }
             },
             icon: Icon(isFromHistory ? Icons.home_rounded : Icons.save_rounded, size: 18),
@@ -376,7 +265,7 @@ class ResultsScreen extends StatelessWidget {
           child: OutlinedButton.icon(
             onPressed: () {
               ctrl.reset();
-              Get.offNamed(AgroRoutes.camera);
+              context.replace(AgroRoutes.camera);
             },
             icon: const Icon(Icons.camera_alt_outlined, size: 18),
             label: const Text('Nuevo scan'),
@@ -386,7 +275,6 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 
-  // DIÁLOGO CORREGIDO CON SingleChildScrollView PARA EVITAR EL OVERFLOW DEL TECLADO
   void _showSaveDialog(BuildContext context, ScanController ctrl, ScanResult currentResult) {
     final nameCtrl = TextEditingController(text: currentResult.displayName);
     String selectedCat = 'Otros';
@@ -400,74 +288,76 @@ class ResultsScreen extends StatelessWidget {
       else if (catLower.contains('plant')) selectedCat = 'Planta';
     }
 
-    Get.dialog(
-      AlertDialog(
-        backgroundColor: AgroColors.cream,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Guardar', style: TextStyle(color: AgroColors.green, fontFamily: AgroText.fontDisplay, fontWeight: FontWeight.bold)),
-        content: StatefulBuilder(
-          builder: (context, setState) {
-            // SOLUCIÓN: Envolver la columna en SingleChildScrollView
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Nombre del registro:', style: TextStyle(fontSize: 13, color: AgroColors.brown, fontFamily: AgroText.fontBody, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: nameCtrl,
-                    style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 14),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AgroColors.border)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AgroColors.green)),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AgroColors.cream,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Guardar', style: TextStyle(color: AgroColors.green, fontFamily: AgroText.fontDisplay, fontWeight: FontWeight.bold)),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Nombre del registro:', style: TextStyle(fontSize: 13, color: AgroColors.brown, fontFamily: AgroText.fontBody, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: nameCtrl,
+                      style: const TextStyle(fontFamily: AgroText.fontBody, fontSize: 14),
+                      decoration: InputDecoration(
+                        isDense: true, filled: true, fillColor: Colors.white,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AgroColors.border)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AgroColors.green)),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('Clasificación:', style: TextStyle(fontSize: 13, color: AgroColors.brown, fontFamily: AgroText.fontBody, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: validCats.map((cat) {
-                      final isSelected = selectedCat == cat;
-                      return ChoiceChip(
-                        label: Text(cat, style: TextStyle(color: isSelected ? Colors.white : AgroColors.textPrimary, fontSize: 12, fontFamily: AgroText.fontBody)),
-                        selected: isSelected,
-                        selectedColor: AgroColors.green,
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isSelected ? AgroColors.green : AgroColors.border)),
-                        onSelected: (bool selected) {
-                          setState(() { selectedCat = cat; });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancelar', style: TextStyle(color: AgroColors.textSecondary, fontFamily: AgroText.fontBody)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AgroColors.green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () async {
-              Get.back(); 
-              await ctrl.saveCurrentScan(customName: nameCtrl.text.trim(), category: selectedCat);
-              Get.snackbar('✓ Guardado', 'El registro se guardó en el historial', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.white);
-              Get.offNamed(AgroRoutes.home);
+                    const SizedBox(height: 20),
+                    const Text('Clasificación:', style: TextStyle(fontSize: 13, color: AgroColors.brown, fontFamily: AgroText.fontBody, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8, runSpacing: 8,
+                      children: validCats.map((cat) {
+                        final isSelected = selectedCat == cat;
+                        return ChoiceChip(
+                          label: Text(cat, style: TextStyle(color: isSelected ? Colors.white : AgroColors.textPrimary, fontSize: 12, fontFamily: AgroText.fontBody)),
+                          selected: isSelected,
+                          selectedColor: AgroColors.green,
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isSelected ? AgroColors.green : AgroColors.border)),
+                          onSelected: (bool selected) { setState(() { selectedCat = cat; }); },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              );
             },
-            child: const Text('Confirmar y Guardar', style: TextStyle(color: Colors.white, fontFamily: AgroText.fontBody)),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar', style: TextStyle(color: AgroColors.textSecondary, fontFamily: AgroText.fontBody)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AgroColors.green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () async {
+                // Guardamos en BD usando Riverpod
+                await ctrl.saveCurrentScan(customName: nameCtrl.text.trim(), category: selectedCat);
+                if (context.mounted) {
+                  Navigator.pop(context); // Cierra el modal
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✓ El registro se guardó en el historial'), backgroundColor: AgroColors.green)
+                  );
+                  context.go(AgroRoutes.home); // Vuelve al inicio usando go_router
+                }
+              },
+              child: const Text('Confirmar y Guardar', style: TextStyle(color: Colors.white, fontFamily: AgroText.fontBody)),
+            ),
+          ],
+        );
+      }
     );
   }
 }
@@ -490,18 +380,8 @@ class _SeverityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      color: _color.withOpacity(0.12),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(_label,
-      style: TextStyle(
-        fontFamily: AgroText.fontBody,
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-        color: _color,
-        letterSpacing: 0.5,
-      )),
+    decoration: BoxDecoration(color: _color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+    child: Text(_label, style: TextStyle(fontFamily: AgroText.fontBody, fontSize: 10, fontWeight: FontWeight.w700, color: _color, letterSpacing: 0.5)),
   );
 }
 
@@ -513,16 +393,7 @@ class _Tag extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-    decoration: BoxDecoration(
-      color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(label,
-      style: TextStyle(
-        fontFamily: AgroText.fontBody,
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: color,
-      )),
+    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+    child: Text(label, style: TextStyle(fontFamily: AgroText.fontBody, fontSize: 11, fontWeight: FontWeight.w600, color: color)),
   );
 }

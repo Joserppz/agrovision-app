@@ -1,9 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:get/get.dart';
 
-class LocationService extends GetxService {
-
+class LocationService {
   Future<Position?> getCurrentPosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return null;
@@ -15,7 +13,6 @@ class LocationService extends GetxService {
     }
     if (permission == LocationPermission.deniedForever) return null;
 
-    // API actualizada en geolocator ^13 — usar LocationSettings
     return Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(
         accuracy:  LocationAccuracy.medium,
@@ -43,8 +40,7 @@ class LocationService extends GetxService {
   double distanceBetween(
     double startLat, double startLon,
     double endLat,   double endLon,
-  ) =>
-      Geolocator.distanceBetween(startLat, startLon, endLat, endLon);
+  ) => Geolocator.distanceBetween(startLat, startLon, endLat, endLon);
 
   Stream<Position> get positionStream => Geolocator.getPositionStream(
     locationSettings: const LocationSettings(

@@ -1,10 +1,20 @@
-// controllers/forum_controller.dart
-import 'package:get/get.dart';
-import '../services/forum_service.dart';
-import 'auth_controller.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ForumController extends GetxController {
-  final ForumService   _forumService;
-  final AuthController _auth;
-  ForumController(this._forumService, this._auth);
+// Estado inmutable del Foro
+class ForumState {
+  final bool isLoading;
+  ForumState({this.isLoading = false});
 }
+
+// Notifier
+class ForumController extends Notifier<ForumState> {
+  @override
+  ForumState build() {
+    return ForumState();
+  }
+}
+
+// Provider Global
+final forumControllerProvider = NotifierProvider<ForumController, ForumState>(() {
+  return ForumController();
+});

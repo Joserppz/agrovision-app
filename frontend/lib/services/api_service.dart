@@ -1,16 +1,18 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:get/get.dart' hide FormData, MultipartFile, Response;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants.dart';
 import '../core/exceptions.dart';
 
-class ApiService extends GetxService {
+// Provider global para inyectar la API
+final apiServiceProvider = Provider((ref) => ApiService());
+
+class ApiService {
   late final Dio _dio;
   final _storage = const FlutterSecureStorage();
 
-  @override
-  void onInit() {
-    super.onInit();
+  // En Riverpod o clases puras, iniciamos en el constructor
+  ApiService() {
     _dio = Dio(BaseOptions(
       baseUrl:        AgroConfig.backendBaseUrl,
       connectTimeout: AgroConfig.httpConnectTimeout,
@@ -61,8 +63,7 @@ class ApiService extends GetxService {
     }
   }
 
-  Future<Response<T>> get<T>(String path,
-          {Map<String, dynamic>? params}) =>
+  Future<Response<T>> get<T>(String path, {Map<String, dynamic>? params}) =>
       _dio.get<T>(path, queryParameters: params);
 
   Future<Response<T>> post<T>(String path, {dynamic data}) =>
