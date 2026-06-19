@@ -3,7 +3,6 @@ import 'package:camera/camera.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/material.dart';
 
 import '../core/exceptions.dart';
 import '../models/scan_result.dart';
@@ -12,17 +11,6 @@ import '../services/location_service.dart';
 import '../services/local_db_service.dart';
 import '../services/api_service.dart';
 
-// --- PROVIDERS DE INYECCIÓN ---
-final locationServiceProvider = Provider((ref) => LocationService());
-
-final scanServiceProvider = Provider((ref) {
-  return ScanService(
-    ref.read(apiServiceProvider),
-    ref.read(localDbProvider),
-  );
-});
-
-// --- ESTADOS ---
 enum ScanStatus { idle, capturing, analyzing, success, error, lowConfidence }
 enum AnalysisMode { yolo, groq, hybrid }
 
@@ -63,14 +51,16 @@ class ScanStateData {
   );
 }
 
-// --- NOTIFIER ---
+final locationServiceProvider = Provider((ref) => LocationService());
+final scanServiceProvider = Provider((ref) => ScanService(ref.read(apiServiceProvider), ref.read(localDbProvider)));
+
 class ScanController extends Notifier<ScanStateData> {
   CameraController? cameraController;
   List<CameraDescription> _cameras = [];
 
   @override
   ScanStateData build() {
-    // La inicialización se dispara de forma independiente
+    ref.onDispose(() => cameraController?.dispose());
     Future.microtask(() {
       _initCamera();
       _loadPosition();
@@ -78,92 +68,60 @@ class ScanController extends Notifier<ScanStateData> {
     return const ScanStateData();
   }
 
-  // Métodos de acceso a servicios vía ref
-  ScanService get _scanService => ref.read(scanServiceProvider);
-  LocationService get _locationService => ref.read(locationServiceProvider);
-
   Future<void> _initCamera() async {
     try {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) return;
-
       final dir = state.isFrontCamera ? CameraLensDirection.front : CameraLensDirection.back;
       final cam = _cameras.firstWhere((c) => c.lensDirection == dir, orElse: () => _cameras.first);
-
+      
       await cameraController?.dispose();
       cameraController = CameraController(cam, ResolutionPreset.veryHigh, enableAudio: false);
       await cameraController!.initialize();
       state = state.copyWith(isCameraReady: true);
     } catch (e) {
-      state = state.copyWith(status: ScanStatus.error, errorMessage: 'Error de cámara');
+      state = state.copyWith(status: ScanStatus.error, errorMessage: 'Error cámara');
     }
   }
 
   Future<void> _loadPosition() async {
-    final pos = await _locationService.getCurrentPosition();
+    final pos = await ref.read(locationServiceProvider).getCurrentPosition();
     if (pos != null) state = state.copyWith(currentPosition: pos);
   }
 
   Future<bool> takePictureAndAnalyze() async {
-    if (state.status == ScanStatus.capturing || state.status == ScanStatus.analyzing) return false;
-    
     state = state.copyWith(status: ScanStatus.capturing);
-    try {
-      final xFile = await cameraController!.takePicture();
-      final image = File(xFile.path);
-      state = state.copyWith(capturedImage: image);
-      return await _processImage(image);
-    } catch (e) {
-      state = state.copyWith(status: ScanStatus.idle);
-      return false;
-    }
+    final xFile = await cameraController!.takePicture();
+    state = state.copyWith(capturedImage: File(xFile.path));
+    return await _processImage(File(xFile.path));
+  }
+
+  Future<bool> analyzeFromGallery(File image) async {
+    state = state.copyWith(capturedImage: image);
+    return await _processImage(image);
   }
 
   Future<bool> _processImage(File image) async {
     state = state.copyWith(status: ScanStatus.analyzing);
     try {
-      final pos = state.currentPosition;
-      final locName = pos != null ? await _locationService.getLocationName(pos.latitude, pos.longitude) : null;
-      
-      final result = await _scanService.analyzeImage(
+      final res = await ref.read(scanServiceProvider).analyzeImage(
         imageFile: image, isOnline: true, mode: state.selectedMode,
-        latitude: pos?.latitude, longitude: pos?.longitude, locationName: locName,
       );
-      
-      state = state.copyWith(status: ScanStatus.success, result: result);
+      state = state.copyWith(status: ScanStatus.success, result: res);
       return true;
     } catch (e) {
-      state = state.copyWith(status: ScanStatus.error, errorMessage: 'Error al analizar');
+      state = state.copyWith(status: ScanStatus.error, errorMessage: 'Error');
       return false;
     }
   }
 
-  Future<void> saveCurrentScan({required String customName, required String category}) async {
-    final result = state.result;
-    final image = state.capturedImage;
-    if (result == null || image == null) return;
-
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final localPath = '${dir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await image.copy(localPath);
-
-      // Usamos el servicio local directamente
-      await ref.read(localDbProvider).saveScan(result.copyWith(
-        diseaseName: customName,
-        plantCategory: category,
-        imagePath: localPath,
-      ));
-    } catch (e) {
-      debugPrint('Error al guardar: $e');
-    }
+  void toggleCamera() async {
+    state = state.copyWith(isFrontCamera: !state.isFrontCamera);
+    await _initCamera();
   }
 
-  @override
-  void dispose() {
-    cameraController?.dispose();
-    super.dispose();
-  }
+  void setMode(AnalysisMode mode) => state = state.copyWith(selectedMode: mode);
+  void reset() => state = const ScanStateData();
 }
 
 final scanControllerProvider = NotifierProvider<ScanController, ScanStateData>(ScanController.new);
