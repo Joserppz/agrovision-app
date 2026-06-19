@@ -106,15 +106,18 @@ class ScanResult {
   );
 
   ScanResult copyWith({
+    String? id,
     String? diseaseName,
     String? plantClass,
     String? plantCategory,
     String? treatment,
     bool? isSynced,
+    double? latitude,
+    double? longitude,
     String? locationName,
     String? imagePath,
   }) => ScanResult(
-    id:            id,
+    id:            id ?? this.id,
     diseaseClass:  diseaseClass,
     plantClass:    plantClass ?? this.plantClass,
     confidence:    confidence,
@@ -123,8 +126,8 @@ class ScanResult {
     diseaseName:   diseaseName ?? this.diseaseName,
     isPlant:       isPlant,
     treatment:     treatment ?? this.treatment,
-    latitude:      latitude,
-    longitude:     longitude,
+    latitude:      latitude ?? this.latitude,
+    longitude:     longitude ?? this.longitude,
     locationName:  locationName ?? this.locationName,
     timestamp:     timestamp,
     imagePath:     imagePath ?? this.imagePath,

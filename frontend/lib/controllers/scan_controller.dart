@@ -6,7 +6,6 @@ import 'package:geolocator/geolocator.dart';
 import '../models/scan_result.dart';
 import '../services/scan_service.dart';
 import '../services/location_service.dart';
-import '../services/local_db_service.dart';
 import '../services/api_service.dart';
 
 enum ScanStatus { idle, capturing, analyzing, success, error, lowConfidence }
@@ -50,7 +49,7 @@ class ScanStateData {
 }
 
 final locationServiceProvider = Provider((ref) => LocationService());
-final scanServiceProvider = Provider((ref) => ScanService(ref.read(apiServiceProvider), ref.read(localDbProvider)));
+final scanServiceProvider = Provider((ref) => ScanService(ref.read(apiServiceProvider)));
 
 class ScanController extends Notifier<ScanStateData> {
   CameraController? cameraController;
